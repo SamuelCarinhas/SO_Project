@@ -1,3 +1,11 @@
+/*
+    SO PROJECT 2021
+
+    Students:
+        Joana Maria Silva Simoes 2019217013
+        Samuel dos Santos Carinhas 2019217199
+*/
+
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/wait.h>
@@ -10,7 +18,6 @@
 #include "read_config.h"
 #include "race_manager.h"
 #include "failure_manager.h"
-
 
 int main() {
 
@@ -29,7 +36,7 @@ int main() {
 
     failure_manager_pid = fork();
     if(failure_manager_pid == 0) {
-        failure_manager();
+        failure_manager(config);
         exit(0);
     }
 

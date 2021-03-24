@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "read_config.h": "c",
+        "functions.h": "c",
+        "failure_manager.h": "c",
+        "race_manager.h": "c",
+        "team_manager.h": "c"
+    }
+}
