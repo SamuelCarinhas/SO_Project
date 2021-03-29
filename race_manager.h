@@ -20,7 +20,9 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <string.h>
+#include "functions.h"
+#include "team_manager.h"
 
-void race_manager(config_t *);
+void race_manager(config_t *, team_t *);
 
 #endif

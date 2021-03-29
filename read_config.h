@@ -11,8 +11,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "constants.h"
 
-#define MAX_STRING 100
 #define MIN_TEAMS 3
 
 typedef struct config_t {

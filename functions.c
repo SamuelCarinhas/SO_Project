@@ -27,3 +27,23 @@ int read_line(FILE * file, char * line, int max_len) {
     line[i] = '\0';
     return 0;
 }
+
+void init_mutex_log() {
+    sem_init(&mutex_log, 1, 1);
+}
+
+void destroy_mutex_log() {
+    sem_destroy(&mutex_log);
+}
+
+void write_log(char * string) {
+    time_t now = time(NULL);
+    struct tm * tm_struct = localtime(&now);
+
+    sem_wait(&mutex_log);
+    FILE * log = fopen(LOG_FILE, "a");
+    fprintf(log, "%2d:%2d:%2d %s\n", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec, string);
+    printf("%2d:%2d:%2d %s\n", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec, string);
+    fclose(log);
+    sem_post(&mutex_log);
+}
