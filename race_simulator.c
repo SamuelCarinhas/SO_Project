@@ -56,6 +56,11 @@ void init() {
             exit(1);
         }
     }
+
+    pthread_mutexattr_t attrmutex;
+    pthread_mutexattr_init(&attrmutex);
+    pthread_mutexattr_setpshared(&attrmutex, PTHREAD_PROCESS_SHARED);
+    pthread_mutex_init(&shared_memory->mutex, &attrmutex);
     
     init_mutex_log();
 
@@ -65,6 +70,13 @@ void init() {
 void clean() {
     destroy_mutex_log();
 
+    pthread_mutex_destroy(&shared_memory->mutex);
+    //pthread_mutexattr_destroy(&attrmutex); 
+    //pthread_condattr_destroy(&attrcondv);
+    for(int i = 0; i < shared_memory->num_teams; i++) {
+        pthread_cond_destroy(&shared_memory->teams[i].new_command);
+    }
+
     for(int i = 0; i < shared_memory->config->teams; i++) {
         shmdt(shared_memory->teams[i].cars);
         shmctl(shmid_cars[i], IPC_RMID, NULL);
@@ -72,6 +84,12 @@ void clean() {
 
     shmdt(shared_memory->teams);
 	shmctl(shmid_teams, IPC_RMID, NULL);
+
+    shmdt(shared_memory->config);
+	shmctl(shmid_config, IPC_RMID, NULL);
+
+    shmdt(shared_memory);
+    shmctl(shmid, IPC_RMID, NULL);
 
     free(shmid_cars);
 }
@@ -105,6 +123,8 @@ int main() {
     waitpid(malfunction_manager_pid, NULL, 0);
     
     clean();
+
+    printf("WE DID IT!\n");
 
     return 0;
 }

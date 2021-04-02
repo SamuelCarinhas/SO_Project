@@ -41,15 +41,16 @@ typedef struct {
 typedef struct {
     char name[MAX_STRING];
     car_t * cars;
-    int num_cars;
+    int num_cars, res;
     pthread_cond_t new_command;
 } team_t;
 
-typedef struct shared_memory_t {
+typedef struct {
     team_t * teams;
     config_t * config;
     int num_teams;
     int race_started;
+    pthread_mutex_t mutex;
 } shared_memory_t;
 
 #endif

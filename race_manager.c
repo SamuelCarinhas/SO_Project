@@ -19,11 +19,12 @@ void create_team(char * team_name, shared_memory_t * shared_memory, int pos) {
     pthread_condattr_setpshared(&attrcondv, PTHREAD_PROCESS_SHARED);
     pthread_cond_init(&shared_memory->teams[pos].new_command, &attrcondv);
     shared_memory->teams[pos].num_cars = 0;
-        
+    shared_memory->teams[pos].res = 0;
+    
     teams_pids[pos] = fork();
     if(teams_pids[pos] == 0) {
-        printf("I am a processes with id %d\n", getpid());
-        //team_manager(config, &teams[i]);
+        printf("I am a processes with id %d, cars: %d\n", getpid(), shared_memory->teams[pos].num_cars);
+        team_manager(shared_memory, &shared_memory->teams[pos]);
         exit(0);
     }
 }
@@ -54,6 +55,9 @@ team_t * load_team(char * string, shared_memory_t * shared_memory) {
     }
 
     int pos_team = get_team_position(data[0], shared_memory);
+
+    printf("WEEE\n");
+
     int pos_car = shared_memory->teams[pos_team].num_cars;
     strcpy(shared_memory->teams[pos_team].cars[pos_car].team_name, data[0]);
     shared_memory->teams[pos_team].cars[pos_car].number = atoi(data[1]);
@@ -86,12 +90,9 @@ void race_manager(shared_memory_t * shared_memory) {
             shared_memory->race_started = 1;
             for(int i = 0; i < shared_memory->num_teams; i++)
                 pthread_cond_signal(&shared_memory->teams[i].new_command);
+            break;
         }
-        
     }
-    
-    load_team(string, shared_memory);
-    
     
     for(int i = 0; i < shared_memory->num_teams; i++) {
         waitpid(teams_pids[i], NULL, 0);

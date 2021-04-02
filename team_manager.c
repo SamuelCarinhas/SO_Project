@@ -15,37 +15,28 @@ void * car_thread(void * p) {
     return NULL;
 }
 
-void team_manager(config_t * config, team_t * team) {
-    int current_car_position = 0;
-    /*
-        while(!race.start) {
-            if(new_command) {
-                .....
-            }
+void team_manager(shared_memory_t * shared_memory, team_t * team) {
+    while(1) {
+        pthread_mutex_lock(&shared_memory->mutex);
+        while (team->num_cars == team->res && shared_memory->race_started == 0) {
+            // IS THIS CORRECT?
+            pthread_cond_wait(&team->new_command, &shared_memory->mutex);
         }
-        pthread_.....
-    */
-    //sem_wait(semaforo_equipa);
-    int a = config->max_cars_per_team; a--;
-    strcpy(team->cars[0].team_name, team->name);
-    team->cars[0].consuption = 1.02;
-    team->cars[0].number = 13;
-    team->cars[0].speed = 250;
-    team->cars[0].reliability = 95;
-    
 
-    pthread_create(&team->cars[0].thread, NULL, car_thread, &team->cars[0]);
-    
-    strcpy(team->cars[1].team_name, team->name);
+        int can_start = shared_memory->race_started;
 
-    team->cars[1].consuption = 0.04;
-    team->cars[1].speed = 32;
-    team->cars[1].reliability = 90;
-    team->cars[1].number = 2;
-    
-    pthread_create(&team->cars[1].thread, NULL, car_thread, &team->cars[1]);
+        pthread_mutex_unlock(&shared_memory->mutex);
+        
+        if(can_start) {
+            break;
+        }
+        
+        pthread_create(&team->cars[team->res].thread, NULL, car_thread, &team->cars[team->res]);
+        team->res++;
+    }
 
-    pthread_join(team->cars[0].thread, NULL);
-    pthread_join(team->cars[1].thread, NULL);
-    //sem_post(semaforo_equipa);
+    for(int i = 0; i < team->res; i++) {
+        printf("Team %s : Car %d is leaving\n", team->name, team->cars[i].number);
+        pthread_join(team->cars[i].thread, NULL);
+    }
 }
