@@ -16,6 +16,16 @@ void * car_thread(void * p) {
 }
 
 void team_manager(config_t * config, team_t * team) {
+    int current_car_position = 0;
+    /*
+        while(!race.start) {
+            if(new_command) {
+                .....
+            }
+        }
+        pthread_.....
+    */
+    //sem_wait(semaforo_equipa);
     int a = config->max_cars_per_team; a--;
     strcpy(team->cars[0].team_name, team->name);
     team->cars[0].consuption = 1.02;
@@ -37,4 +47,5 @@ void team_manager(config_t * config, team_t * team) {
 
     pthread_join(team->cars[0].thread, NULL);
     pthread_join(team->cars[1].thread, NULL);
+    //sem_post(semaforo_equipa);
 }

@@ -24,22 +24,7 @@
 #include <string.h>
 #include "read_config.h"
 #include "functions.h"
-
-enum box_status {
-    OPEN, RESERVED, OCCUPIED
-};
-
-typedef struct car_t {
-    int number, speed, reliability;
-    double consuption;
-    char team_name[MAX_STRING];
-    pthread_t thread;
-} car_t;
-
-typedef struct team_t {
-    char name[MAX_STRING];
-    car_t * cars;
-} team_t;
+#include "constants.h"
 
 void team_manager(config_t *, team_t *);
 

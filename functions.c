@@ -47,3 +47,24 @@ void write_log(char * string) {
     fclose(log);
     sem_post(&mutex_log);
 }
+
+char * trim(char * string) {
+
+    while(*string == ' ') string++;
+
+    char * current;
+    for(current = string + strlen(string) - 1; *current == ' ' && current >= string; current--);
+    *(current+1) = '\0';
+
+    return string;
+}
+
+int starts_with(char * a, char * b) {
+    unsigned int len_b = strlen(b);
+    if(len_b > strlen(a)) return 0;
+
+    for(unsigned int i = 0; i < len_b; i++)
+        if(a[i] != b[i]) return 0;
+
+    return 1;
+}

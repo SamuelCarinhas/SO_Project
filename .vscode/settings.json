@@ -4,6 +4,11 @@
         "functions.h": "c",
         "failure_manager.h": "c",
         "race_manager.h": "c",
-        "team_manager.h": "c"
+        "team_manager.h": "c",
+        "ipc.h": "c",
+        "unistd.h": "c",
+        "malfunction_manager.h": "c",
+        "constants.h": "c",
+        "fcntl.h": "c"
     }
 }

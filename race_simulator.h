@@ -6,10 +6,9 @@
         Samuel dos Santos Carinhas 2019217199
 */
 
-#ifndef RACE_MANAGER_HEADER
-#define RACE_MANAGER_HEADER
+#ifndef RACE_SIMULATOR_HEADER
+#define RACE_SIMULATOR_HEADER
 
-#include "read_config.h"
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/wait.h>
@@ -19,13 +18,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <string.h>
-#include <pthread.h>
+#include "read_config.h"
+#include "race_manager.h"
+#include "malfunction_manager.h"
 #include "functions.h"
 #include "team_manager.h"
-#include "race_simulator.h"
 #include "constants.h"
-
-void race_manager(shared_memory_t *);
 
 #endif

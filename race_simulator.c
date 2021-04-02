@@ -6,45 +6,52 @@
         Samuel dos Santos Carinhas 2019217199
 */
 
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include "read_config.h"
-#include "race_manager.h"
-#include "malfunction_manager.h"
-#include "functions.h"
-#include "team_manager.h"
+#include "race_simulator.h"
 
-team_t * teams;
-config_t * config;
-int shmid_teams, * shmid_cars;
+shared_memory_t * shared_memory;
+int shmid, shmid_teams, * shmid_cars, shmid_config;
 
-void init(){
-    if ((shmid_teams = shmget(IPC_PRIVATE, sizeof(team_t) * config->teams, IPC_CREAT | 0700)) < 0) {
+void pre_init() {
+    if ((shmid = shmget(IPC_PRIVATE, sizeof(shared_memory_t) , IPC_CREAT | 0700)) < 0) {
 		perror("Error in shmget with IPC_CREAT\n");
 		exit(1);
 	}
 
-	if ((teams = ((team_t *) shmat(shmid_teams, NULL, 0))) == ((team_t*)-1)) {
+	if ((shared_memory = ((shared_memory_t *) shmat(shmid, NULL, 0))) == ((shared_memory_t *) -1)) {
 		perror("Shmat error!");
 		exit(1);
 	}
 
+    if ((shmid_config = shmget(IPC_PRIVATE, sizeof(config_t), IPC_CREAT | 0700)) < 0) {
+		perror("Error in shmget with IPC_CREAT\n");
+		exit(1);
+	}
 
-    shmid_cars = (int *) malloc(sizeof(int) * config->max_cars_per_team);
-    for(int i = 0; i < config->teams; i++) {
-        if ((shmid_cars[i] = shmget(IPC_PRIVATE, sizeof(car_t) * config->max_cars_per_team, IPC_CREAT | 0700)) < 0) {
+	if ((shared_memory->config = ((config_t *) shmat(shmid_config, NULL, 0))) == ((config_t*) -1)) {
+		perror("Shmat error!");
+		exit(1);
+	}
+}
+
+void init() {
+    if ((shmid_teams = shmget(IPC_PRIVATE, sizeof(team_t) * shared_memory->config->teams, IPC_CREAT | 0700)) < 0) {
+		perror("Error in shmget with IPC_CREAT\n");
+		exit(1);
+	}
+
+	if ((shared_memory->teams = ((team_t *) shmat(shmid_teams, NULL, 0))) == ((team_t*) -1)) {
+		perror("Shmat error!");
+		exit(1);
+	}
+
+    shmid_cars = (int *) malloc(sizeof(int) * shared_memory->config->max_cars_per_team);
+    for(int i = 0; i < shared_memory->config->teams; i++) {
+        if ((shmid_cars[i] = shmget(IPC_PRIVATE, sizeof(car_t) * shared_memory->config->max_cars_per_team, IPC_CREAT | 0700)) < 0) {
             perror("Error in shmget with IPC_CREAT\n");
             exit(1);
         }
 
-        if ((teams[i].cars = ((car_t *) shmat(shmid_cars[i], NULL, 0))) == ((car_t*)-1)) {
+        if ((shared_memory->teams[i].cars = ((car_t *) shmat(shmid_cars[i], NULL, 0))) == ((car_t*)-1)) {
             perror("Shmat error!");
             exit(1);
         }
@@ -58,12 +65,12 @@ void init(){
 void clean() {
     destroy_mutex_log();
 
-    for(int i = 0; i < config->teams; i++) {
-        shmdt(teams[i].cars);
+    for(int i = 0; i < shared_memory->config->teams; i++) {
+        shmdt(shared_memory->teams[i].cars);
         shmctl(shmid_cars[i], IPC_RMID, NULL);
     }
 
-    shmdt(teams);
+    shmdt(shared_memory->teams);
 	shmctl(shmid_teams, IPC_RMID, NULL);
 
     free(shmid_cars);
@@ -71,8 +78,10 @@ void clean() {
 
 int main() {
 
-    config = load_config();
-    if(config == NULL) return -1;
+    pre_init();
+
+    shared_memory->config = load_config();
+    if(shared_memory->config == NULL) return -1;
 
     pid_t race_manager_pid;
 
@@ -80,7 +89,7 @@ int main() {
 
     race_manager_pid = fork();
     if(race_manager_pid == 0) {
-        race_manager(config, teams);
+        race_manager(shared_memory);
         exit(0);
     }
 
@@ -88,7 +97,7 @@ int main() {
 
     malfunction_manager_pid = fork();
     if(malfunction_manager_pid == 0) {
-        malfunction_manager(config);
+        malfunction_manager(shared_memory->config);
         exit(0);
     }
 

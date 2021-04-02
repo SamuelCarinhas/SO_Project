@@ -11,6 +11,7 @@
 
 #include "read_config.h"
 #include <stdio.h>
+#include "constants.h"
 
 void malfunction_manager(config_t * config);
 

@@ -30,5 +30,7 @@ int read_line(FILE *, char *, int);
 void init_mutex_log();
 void destroy_mutex_log();
 void write_log(char *);
+char * trim (char * );
+int starts_with(char * , char * );
 
 #endif
