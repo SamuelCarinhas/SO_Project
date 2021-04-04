@@ -10,6 +10,7 @@
 #define FUNCTIONS_HEADER
 
 #include <stdio.h>
+#include<stdarg.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/ipc.h>
@@ -21,6 +22,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <ctype.h>
 
 #define LOG_FILE "log.txt"
 
@@ -29,8 +31,9 @@ sem_t mutex_log;
 int read_line(FILE *, char *, int);
 void init_mutex_log();
 void destroy_mutex_log();
-void write_log(char *);
+void write_log(char *, ...);
 char * trim (char * );
 int starts_with(char * , char * );
+int is_number(char *);
 
 #endif

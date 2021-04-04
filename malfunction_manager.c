@@ -8,8 +8,22 @@
 
 #include "malfunction_manager.h"
 
-void malfunction_manager(config_t * config) {
-    int a = config->max_cars_per_team;
-    a--;
-    //printf("Hello World!\n");
+/*
+* NAME :                            void race_manager(shared_memory_t * shared_memory)
+*
+* DESCRIPTION :                     Function to handle the Malfunction process
+*
+* PARAMETERS:
+*           shared_memory_t *       shared_memory          pointer to the shared memory
+*       
+* RETURN :
+*          void
+*
+* TODO :                            EVERYTHING
+*
+*/
+void malfunction_manager(shared_memory_t * shared_memory) {
+    #ifdef DEBUG
+        write_log("DEBUG: Malfunction manager created [%d], Time units: %d\n", getpid(), shared_memory->config->malfunction_time_units);
+    #endif
 }

@@ -9,10 +9,21 @@
 #ifndef MALFUNCTION_MANAGER_HEADER
 #define MALFUNCTION_MANAGER_HEADER
 
-#include "read_config.h"
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/wait.h>
+#include <sys/types.h>
 #include <stdio.h>
-#include "constants.h"
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <pthread.h>
+#include "read_config.h"
+#include "global.h"
+#include "functions.h"
 
-void malfunction_manager(config_t * config);
+void malfunction_manager(shared_memory_t *);
 
 #endif

@@ -16,4 +16,4 @@ project: 		$(OBJS)
 			$(CC) $(CFLAGS) -c $< $(DEPFLAGS)
 
 clean:
-			rm -f $(OBJS) $(deps)
+			rm -f $(OBJS) $(deps) $(PROG)

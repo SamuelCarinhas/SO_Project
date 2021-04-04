@@ -24,7 +24,7 @@
 #include <string.h>
 #include "read_config.h"
 #include "functions.h"
-#include "constants.h"
+#include "global.h"
 
 void team_manager(shared_memory_t *, team_t *);
 

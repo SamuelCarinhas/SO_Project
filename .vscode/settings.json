@@ -9,6 +9,8 @@
         "unistd.h": "c",
         "malfunction_manager.h": "c",
         "constants.h": "c",
-        "fcntl.h": "c"
+        "fcntl.h": "c",
+        "stdarg.h": "c",
+        "stdio.h": "c"
     }
 }

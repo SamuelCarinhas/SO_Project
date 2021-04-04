@@ -9,27 +9,49 @@
 #include "race_manager.h"
 
 pid_t * teams_pids;
-int current_teams = 0;
 
+/*
+* NAME :                            void create_team(char * team_name, shared_memory_t * shared_memory, int pos)
+*
+* DESCRIPTION :                     Adds the new team's information to the shared memory and creates his process
+*
+* PARAMETERS :
+*           char *                  team_name              new team's name
+*           shared_memory_t *       shared_memory          pointer to the shared memory
+*           int                     pos                    position where to insert the new team
+*       
+* OUTPUTS :
+*       void
+*
+*/
 void create_team(char * team_name, shared_memory_t * shared_memory, int pos) {
     strcpy(shared_memory->teams[pos].name, team_name);
 
-    pthread_condattr_t attrcondv;
-    pthread_condattr_init(&attrcondv);
-    pthread_condattr_setpshared(&attrcondv, PTHREAD_PROCESS_SHARED);
-    pthread_cond_init(&shared_memory->teams[pos].new_command, &attrcondv);
     shared_memory->teams[pos].num_cars = 0;
     shared_memory->teams[pos].res = 0;
     
     teams_pids[pos] = fork();
     if(teams_pids[pos] == 0) {
-        printf("I am a processes with id %d, cars: %d\n", getpid(), shared_memory->teams[pos].num_cars);
         team_manager(shared_memory, &shared_memory->teams[pos]);
         exit(0);
     }
 }
-        
 
+/*
+* NAME :                            int get_team_position(char * team_name, shared_memory_t * shared_memory)
+*
+* DESCRIPTION :                     Search for the position of the given team in the shared_memory teams array
+*
+* PARAMETERS :
+*           char *                  team_name              team's name
+*           shared_memory_t *       shared_memory          pointer to the shared memory
+*       
+* RETURN :
+*           int                     Index of the team in the array 
+*
+* TODO :                            Check if the limit of teams wasn't exceeded
+*
+*/
 int get_team_position(char * team_name, shared_memory_t * shared_memory) {
     int pos;
     for(pos = 0; pos < shared_memory->num_teams && strcmp(shared_memory->teams[pos].name, team_name); pos++);
@@ -40,7 +62,23 @@ int get_team_position(char * team_name, shared_memory_t * shared_memory) {
     return pos;
 }
 
-team_t * load_team(char * string, shared_memory_t * shared_memory) {
+
+/*
+* NAME :                            team_t * load_car(char * string, shared_memory_t * shared_memory)
+*
+* DESCRIPTION :                     Loads a new car into the team's car array
+*
+* PARAMETERS :
+*           char *                  string                 NAMEDPIPE command
+*           shared_memory_t *       shared_memory          pointer to the shared memory
+*       
+* RETURN :
+*           team_t                  pointer to the modified team
+*
+* TODO :                            Check the limit of cars per team and make sure the command is valid
+*
+*/
+team_t * load_car(char * string, shared_memory_t * shared_memory) {
     char delim[2] = ",";
     char delim_b[2] = ":";
     char * token, * token_b;
@@ -56,47 +94,57 @@ team_t * load_team(char * string, shared_memory_t * shared_memory) {
 
     int pos_team = get_team_position(data[0], shared_memory);
 
-    printf("WEEE\n");
-
     int pos_car = shared_memory->teams[pos_team].num_cars;
     strcpy(shared_memory->teams[pos_team].cars[pos_car].team_name, data[0]);
     shared_memory->teams[pos_team].cars[pos_car].number = atoi(data[1]);
     shared_memory->teams[pos_team].cars[pos_car].speed = atoi(data[2]);
-    shared_memory->teams[pos_team].cars[pos_car].consuption = atof(data[3]); 
-    shared_memory->teams[pos_team].cars[pos_car].reliability = atoi(data[4]); 
+    shared_memory->teams[pos_team].cars[pos_car].consuption = atof(data[3]);
+    shared_memory->teams[pos_team].cars[pos_car].reliability = atoi(data[4]);
     shared_memory->teams[pos_team].num_cars++;
-    
-    
-    /*printf("%s %d %d %.2f %d\n",shared_memory->teams[pos_team].cars[pos_car].team_name,
-    shared_memory->teams[pos_team].cars[pos_car].number,
-    shared_memory->teams[pos_team].cars[pos_car].speed,
-    shared_memory->teams[pos_team].cars[pos_car].consuption,
-    shared_memory->teams[pos_team].cars[pos_car].reliability
-    );*/
 
     return &shared_memory->teams[pos_team];
 }
 
+/*
+* NAME :                            void race_manager(shared_memory_t * shared_memory)
+*
+* DESCRIPTION :                     Function to handle the Race Manager process
+*
+* PARAMETERS :
+*           shared_memory_t *       shared_memory          pointer to the shared memory
+*       
+* RETURN :
+*          void
+*
+* TODO :                            Handle possible errors (Creating the teams adding cars)
+*
+*/
 void race_manager(shared_memory_t * shared_memory) {
+    #ifdef DEBUG
+        write_log("DEBUG: Race manager created [%d]\n", getpid());
+    #endif
+
     teams_pids = (pid_t *) malloc(sizeof(pid_t) * shared_memory->config->teams);
 
     char string[MAX_STRING];
+    
     while(1) {
         read_line(stdin, string, MAX_STRING);
         if(starts_with(string, "ADDCAR")) {
-            team_t * team = load_team(string, shared_memory);
-            pthread_cond_signal(&team->new_command);
+            load_car(string, shared_memory);
+            pthread_cond_broadcast(&shared_memory->new_command);
         } else if (starts_with(string, "START RACE!")) {
             shared_memory->race_started = 1;
-            for(int i = 0; i < shared_memory->num_teams; i++)
-                pthread_cond_signal(&shared_memory->teams[i].new_command);
+            pthread_cond_broadcast(&shared_memory->new_command);
             break;
         }
     }
     
     for(int i = 0; i < shared_memory->num_teams; i++) {
         waitpid(teams_pids[i], NULL, 0);
-        printf("KILL %d\n", teams_pids[i]);
+        #ifdef DEBUG
+            write_log("DEBUG: Team %s is leaving [%d]\n", shared_memory->teams[i].name, teams_pids[i]);
+        #endif
     }
 
     free(teams_pids);

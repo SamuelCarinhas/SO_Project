@@ -9,7 +9,6 @@
 #ifndef RACE_MANAGER_HEADER
 #define RACE_MANAGER_HEADER
 
-#include "read_config.h"
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/wait.h>
@@ -22,9 +21,10 @@
 #include <string.h>
 #include <pthread.h>
 #include "functions.h"
+#include "read_config.h"
 #include "team_manager.h"
 #include "race_simulator.h"
-#include "constants.h"
+#include "global.h"
 
 void race_manager(shared_memory_t *);
 

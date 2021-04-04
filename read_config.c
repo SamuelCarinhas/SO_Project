@@ -7,13 +7,24 @@
 */
 
 #include "read_config.h"
-#include "functions.h"
 
+/*
+* NAME :                            config_t * load_config()
+*
+* DESCRIPTION :                     Reads the configuration's file and evaluate possible errors
+*
+* PARAMETERS :
+*          void
+*       
+* RETURN :
+*          config_t *               pointer to the config (NULL if the config is invalid)
+*
+*/
 config_t * load_config() {
     FILE * file = fopen("config/config.txt", "r");
 
     if(file == NULL) {
-        printf("Couldn't open config file.\n");
+        write_log("ERROR: Couldn't open config file.\n");
         return NULL;
     }
 
@@ -27,29 +38,33 @@ config_t * load_config() {
         result = read_line(file, lines[i], MAX_STRING);
         
         if(result == -1) {
-            printf("Invalid config file.\n");
+            write_log("ERROR: Invalid config file.\n");
             free(config);
             return NULL;
         }
     }
 
+    if(!is_number(lines[0]) || !is_number(lines[2]) || !is_number(lines[3]) || !is_number(lines[4]) || !is_number(lines[6])) {
+        write_log("ERROR: Invalid config file.\n");
+        free(config);
+        return NULL;
+    }
     config->time_units_per_second = atoi(lines[0]);
 
     char * token;
     const char delim[3] = ", ";
     token = strtok(lines[1], delim);
 
-    if(token == NULL) {
-        printf("Invalid config file.\n");
+    if(token == NULL && !is_number(token)) {
+        write_log("ERROR: Invalid config file.\n");
         free(config);
         return NULL;
     }
-
     config->lap_distance = atoi(token);
     token = strtok(NULL, delim);
     
-    if(token == NULL) {
-        printf("Invalid config file.\n");
+    if(token == NULL && !is_number(token)) {
+        write_log("ERROR: Invalid config file.\n");
         free(config);
         return NULL;
     }
@@ -58,19 +73,18 @@ config_t * load_config() {
     config->teams = atoi(lines[2]);
 
     if(config->teams < MIN_TEAMS) {
-        // TODO:
-        printf("BRUH, DECIDIR DPS.\n");
+        write_log("ERROR: The minimum teams cannot be less than 3\n");
         free(config);
         return NULL;
     }
 
     config->max_cars_per_team = atoi(lines[3]);
-    config->failure_time_units = atoi(lines[4]);
+    config->malfunction_time_units = atoi(lines[4]);
 
     token = strtok(lines[5], delim);
 
-    if(token == NULL) {
-        printf("Invalid config file.\n");
+    if(token == NULL && !is_number(token)) {
+        write_log("ERROR: Invalid config file.\n");
         free(config);
         return NULL;
     }
@@ -78,8 +92,8 @@ config_t * load_config() {
     config->min_repair_time = atoi(token);
     token = strtok(NULL, delim);
     
-    if(token == NULL) {
-        printf("Invalid config file.\n");
+    if(token == NULL && !is_number(token)) {
+        write_log("ERROR: Invalid config file.\n");
         free(config);
         return NULL;
     }

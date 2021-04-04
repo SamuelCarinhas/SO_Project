@@ -23,6 +23,6 @@
 #include "malfunction_manager.h"
 #include "functions.h"
 #include "team_manager.h"
-#include "constants.h"
+#include "global.h"
 
 #endif
