@@ -11,41 +11,7 @@
 shared_memory_t * shared_memory;
 int shmid, shmid_teams, * shmid_cars, shmid_config;
 
-/*
-* NAME :                            void pre_init()
-*
-* DESCRIPTION :                     Allocates space for the shared memory and for the race configurations
-*
-* PARAMETERS :
-*          void
-*       
-* RETURN :
-*          void
-*
-*/
-void pre_init() {
-    if ((shmid = shmget(IPC_PRIVATE, sizeof(shared_memory_t) , IPC_CREAT | 0700)) < 0) {
-		write_log("Error in shmget with IPC_CREAT\n");
-		exit(1);
-	}
 
-	if ((shared_memory = ((shared_memory_t *) shmat(shmid, NULL, 0))) == ((shared_memory_t *) -1)) {
-		write_log("Shmat error!");
-		exit(1);
-	}
-
-    if ((shmid_config = shmget(IPC_PRIVATE, sizeof(config_t), IPC_CREAT | 0700)) < 0) {
-		write_log("Error in shmget with IPC_CREAT\n");
-		exit(1);
-	}
-
-	if ((shared_memory->config = ((config_t *) shmat(shmid_config, NULL, 0))) == ((config_t*) -1)) {
-		write_log("Shmat error!");
-		exit(1);
-	}
-    
-    init_mutex_log();
-}
 
 /*
 * NAME :                            void init()
@@ -59,29 +25,19 @@ void pre_init() {
 *          void
 *
 */
+
 void init() {
-    if ((shmid_teams = shmget(IPC_PRIVATE, sizeof(team_t) * shared_memory->config->teams, IPC_CREAT | 0700)) < 0) {
+    init_mutex_log();
+    if ((shmid = shmget(shmkey, sizeof(shared_memory_t) + sizeof(team_t) * config->teams + sizeof(car_t) * config->max_cars_per_team, IPC_CREAT|IPC_EXCL|0700) < 0) {
 		write_log("Error in shmget with IPC_CREAT\n");
 		exit(1);
 	}
 
-	if ((shared_memory->teams = ((team_t *) shmat(shmid_teams, NULL, 0))) == ((team_t*) -1)) {
+	if ((shared_memory = ((shared_memory_t *) shmat(shmid, NULL, 0))) == ((shared_memory_t *) -1)) {
 		write_log("Shmat error!");
 		exit(1);
 	}
-
-    shmid_cars = (int *) malloc(sizeof(int) * shared_memory->config->max_cars_per_team);
-    for(int i = 0; i < shared_memory->config->teams; i++) {
-        if ((shmid_cars[i] = shmget(IPC_PRIVATE, sizeof(car_t) * shared_memory->config->max_cars_per_team, IPC_CREAT | 0700)) < 0) {
-            write_log("Error in shmget with IPC_CREAT\n");
-            exit(1);
-        }
-
-        if ((shared_memory->teams[i].cars = ((car_t *) shmat(shmid_cars[i], NULL, 0))) == ((car_t*)-1)) {
-            write_log("Shmat error!");
-            exit(1);
-        }
-    }
+    
 
     pthread_mutexattr_t attrmutex;
     pthread_mutexattr_init(&attrmutex);
@@ -146,7 +102,6 @@ void clean() {
 */
 int main() {
 
-    pre_init();
 
     shared_memory->config = load_config();
     if(shared_memory->config == NULL) return -1;
@@ -171,12 +126,12 @@ int main() {
     
     waitpid(race_manager_pid, NULL, 0);
     #ifdef DEBUG
-        write_log("DEBUG: Malfunction manager is leaving [%d]\n", malfunction_manager_pid);
+        write_log("DEBUG: Race manager is leaving [%d]\n", race_manager_pid);
     #endif
 
     waitpid(malfunction_manager_pid, NULL, 0);
     #ifdef DEBUG
-        write_log("DEBUG: Race manager is leaving [%d]\n", race_manager_pid);
+        write_log("DEBUG: Malfunction manager is leaving [%d]\n", malfunction_manager_pid);
     #endif
     
     clean();

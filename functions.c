@@ -96,10 +96,6 @@ void write_log(char * format, ...) {
     time_t now = time(NULL);
     struct tm * tm_struct = localtime(&now);
 
-    char * traverse;
-    int i;
-    char * s;
-
     va_list arg;
     va_start(arg, format);
 
@@ -110,36 +106,8 @@ void write_log(char * format, ...) {
     fprintf(log, "%02d:%02d:%02d ", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
     fprintf(stdout, "%02d:%02d:%02d ", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
     
-    for(traverse = format; *traverse != '\0'; traverse++) {
-        while(*traverse != '%') {
-            if(*traverse == '\0')
-                break;
-            fputc(*traverse, log);
-            fputc(*traverse, stdout);
-            traverse++;
-        }
-        if(*traverse == '\0')
-            break;
-
-        traverse++;
-
-        switch(*traverse) {
-            case 'd':
-                i = va_arg(arg, int);
-                if(i < 0) {
-                    i = -i;
-                    fputc('-', stdin);
-                }
-                fprintf(log, "%d", i);
-                fprintf(stdout, "%d", i);
-                break;
-            case 's':
-                s = va_arg(arg, char *);
-                fprintf(log, "%s", s);
-                fprintf(stdout, "%s", s);
-                break;
-        }
-    }
+    vfprintf(log, format, arg);
+    vfprintf(stdout, format, arg);
 
     fclose(log);
     sem_post(&mutex_log);
@@ -247,4 +215,13 @@ int is_float(char * string) {
     if(second == NULL) 
         return is_number(first);
     return is_number(first) && is_number(second);
+}
+
+team_t * get_team(shared_memory_t shared_memory) {
+    return (team_t *) (shared_memory + 1);
+
+}
+
+car_t * get_car(shared_memory_t * shared_memory, config_t * config) {
+    return (car_t *) get_team(shared_memory) + config->teams;
 }

@@ -41,22 +41,24 @@ enum box_status {
     OPEN, RESERVED, OCCUPIED
 };
 
+enum car_status {
+    NORMAL, SAFE_MODE;
+};
+
 typedef struct {
     int number, speed, reliability;
     double consuption;
-    char team_name[MAX_STRING];
+    team_t * team;
     pthread_t thread;
+    enum car_status status;
 } car_t;
 
 typedef struct {
     char name[MAX_STRING];
-    car_t * cars;
     int num_cars, res;
 } team_t;
 
 typedef struct {
-    team_t * teams;
-    config_t * config;
     int num_teams;
     int race_started;
     pthread_mutex_t mutex;
