@@ -217,11 +217,14 @@ int is_float(char * string) {
     return is_number(first) && is_number(second);
 }
 
-team_t * get_team(shared_memory_t shared_memory) {
+team_t * get_teams(shared_memory_t shared_memory) {
     return (team_t *) (shared_memory + 1);
-
 }
 
-car_t * get_car(shared_memory_t * shared_memory, config_t * config) {
+car_t * get_cars(shared_memory_t * shared_memory, config_t * config) {
     return (car_t *) get_team(shared_memory) + config->teams;
+}
+
+car_t * get_car(team_t * team, shared_memory_t shared_memory, config_t * config, int pos) {
+    return (car_t *) get_cars(shared_memory, config) + team->pos_array * config->max_cars_per_team + pos;
 }

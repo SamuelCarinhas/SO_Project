@@ -35,5 +35,7 @@ void write_log(char *, ...);
 char * trim (char * );
 int starts_with(char * , char * );
 int is_number(char *);
+team_t * get_teams(shared_memory_t shared_memory);
+car_t * get_cars(shared_memory_t * shared_memory, config_t * config);
 
 #endif

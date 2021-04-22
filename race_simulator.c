@@ -28,7 +28,8 @@ int shmid, shmid_teams, * shmid_cars, shmid_config;
 
 void init() {
     init_mutex_log();
-    if ((shmid = shmget(shmkey, sizeof(shared_memory_t) + sizeof(team_t) * config->teams + sizeof(car_t) * config->max_cars_per_team, IPC_CREAT|IPC_EXCL|0700) < 0) {
+
+    if ((shmid = shmget(shmkey, sizeof(shared_memory_t) + sizeof(team_t) * config->teams + sizeof(car_t) * config->max_cars_per_team * config->teams, IPC_CREAT|IPC_EXCL|0700) < 0) {
 		write_log("Error in shmget with IPC_CREAT\n");
 		exit(1);
 	}

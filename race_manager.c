@@ -25,14 +25,14 @@ pid_t * teams_pids;
 *
 */
 void create_team(char * team_name, shared_memory_t * shared_memory, int pos) {
-    strcpy(shared_memory->teams[pos].name, team_name);
+    strcpy(get_teams(shared_memory)[pos].name, team_name);
 
-    shared_memory->teams[pos].num_cars = 0;
-    shared_memory->teams[pos].res = 0;
+    get_teams(shared_memory)[pos].num_cars = 0;
+    get_teams(shared_memory)[pos].res = 0;
     
     teams_pids[pos] = fork();
     if(teams_pids[pos] == 0) {
-        team_manager(shared_memory, &shared_memory->teams[pos]);
+        team_manager(shared_memory, &get_teams(shared_memory)[pos]);
         exit(0);
     }
 }
@@ -54,7 +54,7 @@ void create_team(char * team_name, shared_memory_t * shared_memory, int pos) {
 */
 int get_team_position(char * team_name, shared_memory_t * shared_memory) {
     int pos;
-    for(pos = 0; pos < shared_memory->num_teams && strcmp(shared_memory->teams[pos].name, team_name); pos++);
+    for(pos = 0; pos < shared_memory->num_teams && strcmp(get_teams(shared_memory)[pos].name, team_name); pos++);
     if(pos == shared_memory->num_teams) {
         create_team(team_name, shared_memory, pos);
         shared_memory->num_teams++;
@@ -94,7 +94,9 @@ team_t * load_car(char * string, shared_memory_t * shared_memory) {
 
     int pos_team = get_team_position(data[0], shared_memory);
 
-    int pos_car = shared_memory->teams[pos_team].num_cars;
+    team_t team = get_teams(shared_memory)[pos_team];
+    
+    int pos_car = team.num_cars;
     strcpy(shared_memory->teams[pos_team].cars[pos_car].team_name, data[0]);
     shared_memory->teams[pos_team].cars[pos_car].number = atoi(data[1]);
     shared_memory->teams[pos_team].cars[pos_car].speed = atoi(data[2]);

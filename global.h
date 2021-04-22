@@ -56,6 +56,7 @@ typedef struct {
 typedef struct {
     char name[MAX_STRING];
     int num_cars, res;
+    int pos_array;
 } team_t;
 
 typedef struct {
