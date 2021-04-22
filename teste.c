@@ -62,8 +62,29 @@ void print_car (car_t * car){
 
 int main() {
     shmid = shmget(shmkey, sizeof(shared_memory_t) + sizeof(team_t) * MAX_TEAMS + sizeof(car_t) * MAX_CARS * MAX_TEAMS, IPC_CREAT|IPC_EXCL|0700);
+    if(shmid < 1) {
+        perror("Error with shmget: ");
+        exit(1);
+    }
     shared = (shared_memory_t *) shmat(shmid, NULL, 0);
+    if(shared < (shared_memory_t *) 1) {
+        perror("Error with shmat: ");
+        exit(1);
+    }
 
+    /*if( (shmkey = ftok(".", getpid())) == (key_t) -1){
+    perror("IPC error: ftok");
+    exit(1);
+    };
+    
+    if (shmid = shmget(shmkey, sizeof(shared_memory_t) + sizeof(team_t) * MAX_TEAMS + sizeof(car_t) * MAX_CARS * MAX_TEAMS, IPC_CREAT|IPC_EXCL|0700) < 1) {
+		exit(1);
+	}
+
+	if ((shared = ((shared_memory_t *) shmat(shmid, NULL, 0)))< ((shared_memory_t *) 1)) {
+        perror("Wee");
+		exit(1);
+	}*/
     team_t * teams = get_teams(shared);
 
     strcpy(teams[0].name, "Team A");

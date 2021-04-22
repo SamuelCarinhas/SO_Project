@@ -26,6 +26,6 @@
 #include "race_simulator.h"
 #include "global.h"
 
-void race_manager(shared_memory_t *);
+void race_manager(shared_memory_t *, config_t *);
 
 #endif

@@ -9,7 +9,9 @@
 #include "race_simulator.h"
 
 shared_memory_t * shared_memory;
-int shmid, shmid_teams, * shmid_cars, shmid_config;
+config_t * config;
+key_t shmkey;
+int shmid;
 
 
 
@@ -28,17 +30,18 @@ int shmid, shmid_teams, * shmid_cars, shmid_config;
 
 void init() {
     init_mutex_log();
-
-    if ((shmid = shmget(shmkey, sizeof(shared_memory_t) + sizeof(team_t) * config->teams + sizeof(car_t) * config->max_cars_per_team * config->teams, IPC_CREAT|IPC_EXCL|0700) < 0) {
-		write_log("Error in shmget with IPC_CREAT\n");
-		exit(1);
-	}
-
-	if ((shared_memory = ((shared_memory_t *) shmat(shmid, NULL, 0))) == ((shared_memory_t *) -1)) {
-		write_log("Shmat error!");
-		exit(1);
-	}
     
+    shmid = shmget(shmkey, sizeof(shared_memory_t) + sizeof(team_t) * config->teams + sizeof(car_t) * config->max_cars_per_team * config->teams, IPC_CREAT|IPC_EXCL|0700);
+    if(shmid < 1) {
+        perror("Error with shmget: ");
+        exit(1);
+    }
+
+    shared_memory = (shared_memory_t *) shmat(shmid, NULL, 0);
+    if(shared_memory < (shared_memory_t *) 1) {
+        perror("Error with shmat: ");
+        exit(1);
+    }
 
     pthread_mutexattr_t attrmutex;
     pthread_mutexattr_init(&attrmutex);
@@ -49,7 +52,6 @@ void init() {
     pthread_condattr_init(&attrcondv);
     pthread_condattr_setpshared(&attrcondv, PTHREAD_PROCESS_SHARED);
     pthread_cond_init(&shared_memory->new_command, &attrcondv);
-    
 
     write_log("SIMULATOR STARTING\n");
 }
@@ -71,22 +73,11 @@ void clean() {
 
     pthread_mutex_destroy(&shared_memory->mutex);
     pthread_cond_destroy(&shared_memory->new_command);
-    
 
-    for(int i = 0; i < shared_memory->config->teams; i++) {
-        shmdt(shared_memory->teams[i].cars);
-        shmctl(shmid_cars[i], IPC_RMID, NULL);
-    }
-
-    shmdt(shared_memory->teams);
-	shmctl(shmid_teams, IPC_RMID, NULL);
-    shmdt(shared_memory->config);
-	shmctl(shmid_config, IPC_RMID, NULL);
 
     shmdt(shared_memory);
     shmctl(shmid, IPC_RMID, NULL);
 
-    free(shmid_cars);
 }
 
 /*
@@ -102,10 +93,10 @@ void clean() {
 *
 */
 int main() {
+    config = load_config();
+    if(config == NULL) return -1;
 
-
-    shared_memory->config = load_config();
-    if(shared_memory->config == NULL) return -1;
+    
 
     pid_t race_manager_pid;
 
@@ -113,7 +104,7 @@ int main() {
 
     race_manager_pid = fork();
     if(race_manager_pid == 0) {
-        race_manager(shared_memory);
+        race_manager(shared_memory, config);
         exit(0);
     }
 
@@ -124,12 +115,14 @@ int main() {
         malfunction_manager(shared_memory);
         exit(0);
     }
-    
+
+
     waitpid(race_manager_pid, NULL, 0);
     #ifdef DEBUG
         write_log("DEBUG: Race manager is leaving [%d]\n", race_manager_pid);
     #endif
 
+    wait(NULL);
     waitpid(malfunction_manager_pid, NULL, 0);
     #ifdef DEBUG
         write_log("DEBUG: Malfunction manager is leaving [%d]\n", malfunction_manager_pid);

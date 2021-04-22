@@ -24,7 +24,7 @@
 void * car_thread(void * p) {
     car_t car = *((car_t *) p);
     #ifdef DEBUG
-        write_log("DEBUG: Car %d [Team %s] created\n", car.number, car.team_name);
+        write_log("DEBUG: Car %d [Team %s] created\n", car.number, car.team->name);
     #endif
     pthread_exit(NULL);
     return NULL;
@@ -43,7 +43,7 @@ void * car_thread(void * p) {
 *          void
 *
 */
-void team_manager(shared_memory_t * shared_memory, team_t * team) {
+void team_manager(shared_memory_t * shared_memory, team_t * team, config_t * config) {
     #ifdef DEBUG
         write_log("DEBUG: Team %s manager created [%d]\n", team->name, getpid());
     #endif
@@ -60,15 +60,16 @@ void team_manager(shared_memory_t * shared_memory, team_t * team) {
         if(can_start) {
             break;
         }
-        
-        pthread_create(&team->cars[team->res].thread, NULL, car_thread, &team->cars[team->res]);
+
+        car_t * car = get_car(shared_memory, config, team->pos_array, team->res);
+        pthread_create(&car->thread, NULL, car_thread, car);
         team->res++;
     }
 
     for(int i = 0; i < team->res; i++) {
         #ifdef DEBUG
-            write_log("DEBUG: Team %s : Car %d is leaving\n", team->name, team->cars[i].number);
+            write_log("DEBUG: Team %s : Car %d is leaving\n", team->name, get_car(shared_memory, config, team->pos_array, i)->number);
         #endif
-        pthread_join(team->cars[i].thread, NULL);
+        pthread_join(get_cars(shared_memory, config)[i].thread, NULL);
     }
 }

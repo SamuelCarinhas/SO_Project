@@ -42,8 +42,14 @@ enum box_status {
 };
 
 enum car_status {
-    NORMAL, SAFE_MODE;
+    NORMAL, SAFE_MODE
 };
+
+typedef struct {
+    char name[MAX_STRING];
+    int num_cars, res;
+    int pos_array;
+} team_t;
 
 typedef struct {
     int number, speed, reliability;
@@ -52,12 +58,6 @@ typedef struct {
     pthread_t thread;
     enum car_status status;
 } car_t;
-
-typedef struct {
-    char name[MAX_STRING];
-    int num_cars, res;
-    int pos_array;
-} team_t;
 
 typedef struct {
     int num_teams;

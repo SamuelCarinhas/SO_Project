@@ -10,7 +10,7 @@
 #define FUNCTIONS_HEADER
 
 #include <stdio.h>
-#include<stdarg.h>
+#include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/ipc.h>
@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <ctype.h>
+#include "global.h"
 
 #define LOG_FILE "log.txt"
 
@@ -35,7 +36,8 @@ void write_log(char *, ...);
 char * trim (char * );
 int starts_with(char * , char * );
 int is_number(char *);
-team_t * get_teams(shared_memory_t shared_memory);
-car_t * get_cars(shared_memory_t * shared_memory, config_t * config);
+team_t * get_teams(shared_memory_t *);
+car_t * get_cars(shared_memory_t *, config_t * );
+car_t * get_car(shared_memory_t *, config_t *, int, int);
 
 #endif
