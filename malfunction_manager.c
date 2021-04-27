@@ -22,8 +22,8 @@
 * TODO :                            EVERYTHING
 *
 */
-void malfunction_manager(shared_memory_t * shared_memory) {
+void malfunction_manager(shared_memory_t * shared_memory, config_t * config) {
     #ifdef DEBUG
-        //write_log("DEBUG: Malfunction manager created [%d], Time units: %d\n", getpid(), shared_memory->config->malfunction_time_units);
+        write_log("DEBUG: Malfunction manager created [%d], Time units: %d\n", getpid(), config->malfunction_time_units);
     #endif
 }

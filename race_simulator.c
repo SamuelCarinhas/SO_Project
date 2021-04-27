@@ -112,7 +112,7 @@ int main() {
 
     malfunction_manager_pid = fork();
     if(malfunction_manager_pid == 0) {
-        malfunction_manager(shared_memory);
+        malfunction_manager(shared_memory, config);
         exit(0);
     }
 

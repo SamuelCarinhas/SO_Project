@@ -255,7 +255,7 @@ team_t * get_teams(shared_memory_t * shared_memory) {
 }
 
 car_t * get_cars(shared_memory_t * shared_memory, config_t * config) {
-    return (car_t *) get_teams(shared_memory) + config->teams* sizeof(team_t);
+    return (car_t *) get_teams(shared_memory) + config->teams;//* sizeof(team_t);
 }
 
 car_t * get_car(shared_memory_t * shared_memory, config_t * config, int pos_team, int pos_car) {

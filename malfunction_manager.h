@@ -24,6 +24,6 @@
 #include "global.h"
 #include "functions.h"
 
-void malfunction_manager(shared_memory_t *);
+void malfunction_manager(shared_memory_t *, config_t *);
 
 #endif
