@@ -18,13 +18,13 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/msg.h>
 
 #define MAX_STRING 100
 #define MIN_TEAMS 3
 #define DEBUG
 
 typedef struct config_t {
-
     int time_units_per_second;
     int lap_distance;
     int laps;
@@ -34,7 +34,6 @@ typedef struct config_t {
     int min_repair_time; // unidades de tempo
     int max_repair_time; // unidades de tempo
     int fuel_capacity;
-
 } config_t;
 
 enum box_status {
@@ -42,13 +41,14 @@ enum box_status {
 };
 
 enum car_status {
-    NORMAL, SAFE_MODE
+    RACE, SAFE_MODE, BOX, GAVE_UP, FINISHED
 };
 
 typedef struct {
     char name[MAX_STRING];
     int num_cars, res;
     int pos_array;
+    enum box_status status;
 } team_t;
 
 typedef struct {
@@ -60,8 +60,14 @@ typedef struct {
 } car_t;
 
 typedef struct {
+    long car_number;
+    int useless_variable; // Só para dizer que temos alguma coisa =D
+} message_t;
+
+typedef struct {
     int num_teams;
     int race_started;
+    int message_queue;
     pthread_mutex_t mutex;
     pthread_cond_t new_command;
 } shared_memory_t;

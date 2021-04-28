@@ -8,6 +8,10 @@
 
 #include "team_manager.h"
 
+typedef struct{
+    shared_memory_t * shared_memory;
+    car_t * car;
+}arguments_t;
 
 /*
 * NAME :                            void * car_thread(void * p)
@@ -22,10 +26,22 @@
 *
 */
 void * car_thread(void * p) {
-    car_t car = *((car_t *) p);
+    arguments_t arguments = *((arguments_t *) p);
+    message_t message;
+    car_t * car = arguments.car;
+
     #ifdef DEBUG
-        write_log("DEBUG: Car %d [Team %s] created\n", car.number, car.team->name);
+        write_log("DEBUG: Car %d [Team %s] created\n", car->number, car->team->name);
     #endif
+
+    shared_memory_t * shared_memory = arguments.shared_memory;
+
+    while(1){
+        msgrcv(shared_memory->message_queue, &message, sizeof(message_t) - sizeof(long), car->number, 0);
+        write_log("NEW PROBLEM IN CAR %d\n", car->number);
+
+    }
+
     pthread_exit(NULL);
     return NULL;
 }
@@ -48,6 +64,7 @@ void team_manager(shared_memory_t * shared_memory, team_t * team, config_t * con
         write_log("DEBUG: Team %s manager created [%d]\n", team->name, getpid());
     #endif
     while(1) {
+
         pthread_mutex_lock(&shared_memory->mutex);
         while (team->num_cars == team->res && shared_memory->race_started == 0) {
             pthread_cond_wait(&shared_memory->new_command, &shared_memory->mutex);
@@ -60,9 +77,10 @@ void team_manager(shared_memory_t * shared_memory, team_t * team, config_t * con
         if(can_start) {
             break;
         }
-
-        car_t * car = get_car(shared_memory, config, team->pos_array, team->res);
-        pthread_create(&car->thread, NULL, car_thread, car);
+        arguments_t arguments;
+        arguments.shared_memory = shared_memory;
+        arguments.car =  get_car(shared_memory, config, team->pos_array, team->res);
+        pthread_create(&arguments.car->thread, NULL, car_thread, &arguments);
         team->res++;
     }
 

@@ -53,6 +53,13 @@ void init() {
     pthread_condattr_setpshared(&attrcondv, PTHREAD_PROCESS_SHARED);
     pthread_cond_init(&shared_memory->new_command, &attrcondv);
 
+    shared_memory->message_queue = msgget(IPC_PRIVATE, IPC_CREAT|0777);
+    if(shared_memory->message_queue <0){
+        perror("Creating message queue");
+        exit(0);
+    }
+    shared_memory->num_teams = 0;
+    shared_memory->race_started = 0;
     write_log("SIMULATOR STARTING\n");
 }
 
@@ -77,7 +84,6 @@ void clean() {
 
     shmdt(shared_memory);
     shmctl(shmid, IPC_RMID, NULL);
-
 }
 
 /*

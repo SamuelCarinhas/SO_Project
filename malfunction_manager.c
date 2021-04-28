@@ -26,4 +26,27 @@ void malfunction_manager(shared_memory_t * shared_memory, config_t * config) {
     #ifdef DEBUG
         write_log("DEBUG: Malfunction manager created [%d], Time units: %d\n", getpid(), config->malfunction_time_units);
     #endif
+
+    int i, j;
+
+    srand(getpid());
+
+    message_t message;
+    message.useless_variable = 1;
+
+    while(1) {
+        //printf("Bruh\n");
+        //write_log("Gonna sleep for %d seconds...\n", config->time_units_per_second * config->malfunction_time_units);
+        sleep(config->time_units_per_second * config->malfunction_time_units);
+        for(i = 0; i < shared_memory->num_teams; i++) {
+            for(j = 0; j < get_teams(shared_memory)->num_cars; j++) {
+                car_t * car = get_car(shared_memory, config, i, j);
+                message.car_number = car->number;
+                int debug = rand() % 100;
+                if(debug > car->reliability) {
+                    msgsnd(shared_memory->message_queue, &message, sizeof(message_t) - sizeof(long), 0);
+                }
+            }
+        }
+    }
 }

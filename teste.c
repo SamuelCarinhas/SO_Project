@@ -45,11 +45,11 @@ team_t * get_teams(shared_memory_t * shared_memory) {
 }
 
 car_t * get_cars(shared_memory_t * shared_memory) {
-    return (car_t *) get_teams(shared_memory) + MAX_TEAMS * sizeof(team_t);
+    return (car_t *) (get_teams(shared_memory) + MAX_TEAMS);
 }
 
 car_t * get_car(shared_memory_t * shared_memory, int team_pos, int car_pos){
-    return (car_t *) get_cars(shared_memory) + team_pos*MAX_CARS + car_pos;
+    return (car_t *) (get_cars(shared_memory) + team_pos*MAX_CARS + car_pos);
 }
 
 void print_team(team_t * team) {// HelloThere
