@@ -26,6 +26,6 @@
 #include "functions.h"
 #include "global.h"
 
-void team_manager(shared_memory_t *, team_t *, config_t * );
+void team_manager(shared_memory_t *, team_t *, config_t *, int fd);
 
 #endif

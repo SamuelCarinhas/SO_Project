@@ -19,10 +19,14 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/msg.h>
+#include <errno.h>
+#include <signal.h>
 
 #define MAX_STRING 100
 #define MIN_TEAMS 3
 #define DEBUG
+#define PIPE_NAME "COMMAND_PIPE"
+#define TOP_STATISTICS 5
 
 typedef struct config_t {
     int time_units_per_second;
@@ -52,8 +56,9 @@ typedef struct {
 } team_t;
 
 typedef struct {
-    int number, speed, reliability;
-    double consuption;
+    int number, speed, reliability,
+        total_malfunctions, total_refuels, total_boxstops;
+    double consuption, fuel, distance, current_speed;
     team_t * team;
     pthread_t thread;
     enum car_status status;
@@ -61,7 +66,7 @@ typedef struct {
 
 typedef struct {
     long car_number;
-    int useless_variable; // Só para dizer que temos alguma coisa =D
+    int malfunction;
 } message_t;
 
 typedef struct {

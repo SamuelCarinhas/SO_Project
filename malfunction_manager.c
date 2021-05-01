@@ -24,15 +24,22 @@
 */
 void malfunction_manager(shared_memory_t * shared_memory, config_t * config) {
     #ifdef DEBUG
-        write_log("DEBUG: Malfunction manager created [%d], Time units: %d\n", getpid(), config->malfunction_time_units);
+        write_log("DEBUG: Malfunction manager created [%d]\n", getpid());
     #endif
 
     int i, j;
 
     srand(getpid());
 
+    pthread_mutex_lock(&shared_memory->mutex);
+    while (shared_memory->race_started == 0) {
+        pthread_cond_wait(&shared_memory->new_command, &shared_memory->mutex);
+    }
+
+    pthread_mutex_unlock(&shared_memory->mutex);
+
     message_t message;
-    message.useless_variable = 1;
+    message.malfunction = 1;
 
     while(1) {
         //printf("Bruh\n");
@@ -43,8 +50,12 @@ void malfunction_manager(shared_memory_t * shared_memory, config_t * config) {
                 car_t * car = get_car(shared_memory, config, i, j);
                 message.car_number = car->number;
                 int debug = rand() % 100;
+
                 if(debug > car->reliability) {
                     msgsnd(shared_memory->message_queue, &message, sizeof(message_t) - sizeof(long), 0);
+                    #ifdef DEBUG
+                        write_log("DEBUG: Malfunction in car %d\n", message.car_number);
+                    #endif
                 }
             }
         }

@@ -13,6 +13,8 @@ config_t * config;
 key_t shmkey;
 int shmid;
 
+pid_t main_pid;
+
 
 
 /*
@@ -29,7 +31,13 @@ int shmid;
 */
 
 void init() {
+    main_pid = getpid();
     init_mutex_log();
+    unlink(PIPE_NAME);
+    if((mkfifo(PIPE_NAME, O_CREAT | O_EXCL | 0600) < 0) && (errno != EEXIST)) {
+        perror("Cannot create pipe: ");
+        exit(1);
+    }
     
     shmid = shmget(shmkey, sizeof(shared_memory_t) + sizeof(team_t) * config->teams + sizeof(car_t) * config->max_cars_per_team * config->teams, IPC_CREAT|IPC_EXCL|0700);
     if(shmid < 1) {
@@ -43,11 +51,11 @@ void init() {
         exit(1);
     }
 
+
     pthread_mutexattr_t attrmutex;
     pthread_mutexattr_init(&attrmutex);
     pthread_mutexattr_setpshared(&attrmutex, PTHREAD_PROCESS_SHARED);
     pthread_mutex_init(&shared_memory->mutex, &attrmutex);
-
     pthread_condattr_t attrcondv;
     pthread_condattr_init(&attrcondv);
     pthread_condattr_setpshared(&attrcondv, PTHREAD_PROCESS_SHARED);
@@ -76,14 +84,52 @@ void init() {
 *
 */
 void clean() {
-    destroy_mutex_log();
+    printf("Ctrl^C pressed\n");
+    while(wait(NULL) != -1);
 
-    pthread_mutex_destroy(&shared_memory->mutex);
-    pthread_cond_destroy(&shared_memory->new_command);
+    if(main_pid == getpid()) {
+        printf("Main Process Killed\n");
+        destroy_mutex_log();
 
+        //pthread_cond_broadcast(&shared_memory->new_command);
+        //pthread_mutex_unlock(&shared_memory->mutex);
 
-    shmdt(shared_memory);
-    shmctl(shmid, IPC_RMID, NULL);
+        shmdt(shared_memory);
+        shmctl(shmid, IPC_RMID, NULL);
+    } else {
+        shared_memory->race_started = 1;
+        pthread_cond_broadcast(&shared_memory->new_command);
+        printf("Child Process Killed\n");
+    }
+
+    exit(0);
+}
+
+void show_statistics() {
+    if(main_pid == getpid()) {
+        if(shared_memory->race_started== 0) {
+            write_log("STATISTICS: RACE NOT STARTED\n");
+        } else {
+            car_t best_cars[TOP_STATISTICS];
+            for(int i = 0; i < TOP_STATISTICS; i++) best_cars[i].distance = -1;
+            team_t * teams = get_teams(shared_memory);
+            car_t * car;
+            for(int i = 0; i < shared_memory->num_teams; i++) {
+                for(int j = 0; j < teams[i].num_cars; j++) {
+                    car = get_car(shared_memory, config, i, j);
+                    int l;
+                    for(l = 0; l < TOP_STATISTICS && car->distance < best_cars[l].distance; l++);
+                    if(l == TOP_STATISTICS) continue;
+                    for(int k = TOP_STATISTICS - 1; k > l; k--) best_cars[k] = best_cars[k-1];
+                    best_cars[l] = *car;
+                }
+            }
+
+            for(int i = 0; i< TOP_STATISTICS; i++){
+                printf("%d: Car %d from Team %s, No laps: %d, No stops: %d\n", (i+1), best_cars[i].number, best_cars[i].team->name, (int)(best_cars[i].distance/config->lap_distance), best_cars[i].total_boxstops);
+            }
+        }
+    }
 }
 
 /*
@@ -99,6 +145,10 @@ void clean() {
 *
 */
 int main() {
+
+    signal(SIGINT, clean);
+    signal(SIGTSTP, show_statistics);
+
     config = load_config();
     if(config == NULL) return -1;
 
@@ -123,18 +173,18 @@ int main() {
     }
 
 
-    waitpid(race_manager_pid, NULL, 0);
+    /*waitpid(race_manager_pid, NULL, 0);
     #ifdef DEBUG
         write_log("DEBUG: Race manager is leaving [%d]\n", race_manager_pid);
     #endif
 
-    wait(NULL);
     waitpid(malfunction_manager_pid, NULL, 0);
     #ifdef DEBUG
         write_log("DEBUG: Malfunction manager is leaving [%d]\n", malfunction_manager_pid);
-    #endif
+    #endif*/
     
-    clean();
+    wait(NULL);
+    wait(NULL);
 
     return 0;
 }
