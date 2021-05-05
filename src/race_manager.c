@@ -106,6 +106,7 @@ team_t * load_car(char * string, shared_memory_t * shared_memory, config_t * con
     car->team = team;
     car->number = atoi(data[1]);
     car->speed = atoi(data[2]);
+    car->current_speed = car->speed;
     car->consuption = atof(data[3]);
     car->reliability = atoi(data[4]);
     car->fuel = config->fuel_capacity;

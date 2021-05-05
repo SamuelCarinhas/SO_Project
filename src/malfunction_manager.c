@@ -46,7 +46,7 @@ void malfunction_manager(shared_memory_t * shared_memory, config_t * config) {
         //write_log("Gonna sleep for %d seconds...\n", config->time_units_per_second * config->malfunction_time_units);
         sleep(config->time_units_per_second * config->malfunction_time_units);
         for(i = 0; i < shared_memory->num_teams; i++) {
-            for(j = 0; j < get_teams(shared_memory)->num_cars; j++) {
+            for(j = 0; j < get_teams(shared_memory)[i].num_cars; j++) {
                 car_t * car = get_car(shared_memory, config, i, j);
                 message.car_number = car->number;
                 int debug = rand() % 100;
