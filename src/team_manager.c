@@ -73,6 +73,7 @@ void * car_thread(void * p) {
         if(car->distance >= total_distance) {
             car->status = FINISHED;
             write_log("Car %d finished the race\n", car->number);
+            pthread_exit(NULL);
         } else {
             // !!!!!!!!!!! GET THE SPEED IN SAFE MODE !!!!!!!!!!!
             // Fazer tudo...

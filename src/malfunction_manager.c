@@ -51,7 +51,7 @@ void malfunction_manager(shared_memory_t * shared_memory, config_t * config) {
                 message.car_number = car->number;
                 int debug = rand() % 100;
 
-                if(debug > car->reliability) {
+                if(debug > car->reliability && car->status == RACE) {
                     msgsnd(shared_memory->message_queue, &message, sizeof(message_t) - sizeof(long), 0);
                     #ifdef DEBUG
                         write_log("DEBUG: Malfunction in car %d\n", message.car_number);
