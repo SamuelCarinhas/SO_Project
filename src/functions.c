@@ -77,7 +77,6 @@ void destroy_mutex_log() {
 }
 
 /*
-* Addapted from http://www.firmcodes.com/write-printf-function-c/
 *
 * NAME :                            int read_line(FILE * file, char * line, int max_len)
 *
@@ -96,55 +95,24 @@ void write_log(char * format, ...) {
     time_t now = time(NULL);
     struct tm * tm_struct = localtime(&now);
 
-    char * traverse;
-    int i;
-    char * s;
-
-    va_list arg;
-    va_start(arg, format);
-
     sem_wait(&mutex_log);
     
     FILE * log = fopen(LOG_FILE, "a");
     
-    fprintf(log, "%02d:%02d:%02d ", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
-    fprintf(stdout, "%02d:%02d:%02d ", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
+    va_list arg;
     
-    for(traverse = format; *traverse != '\0'; traverse++) {
-        while(*traverse != '%') {
-            if(*traverse == '\0')
-                break;
-            fputc(*traverse, log);
-            fputc(*traverse, stdout);
-            traverse++;
-        }
-        if(*traverse == '\0')
-            break;
-
-        traverse++;
-
-        switch(*traverse) {
-            case 'd':
-                i = va_arg(arg, int);
-                if(i < 0) {
-                    i = -i;
-                    fputc('-', stdin);
-                }
-                fprintf(log, "%d", i);
-                fprintf(stdout, "%d", i);
-                break;
-            case 's':
-                s = va_arg(arg, char *);
-                fprintf(log, "%s", s);
-                fprintf(stdout, "%s", s);
-                break;
-        }
-    }
-
+    va_start(arg, format);
+    fprintf(log, "%02d:%02d:%02d ", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
+    vfprintf(log, format, arg);
     fclose(log);
-    sem_post(&mutex_log);
-
     va_end(arg);
+
+    va_start(arg, format);
+    fprintf(stdout, "%02d:%02d:%02d ", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
+    vfprintf(stdout, format, arg);
+    va_end(arg);
+    
+    sem_post(&mutex_log);
 }
 
 /*

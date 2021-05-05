@@ -25,7 +25,7 @@
 #include <ctype.h>
 #include "global.h"
 
-#define LOG_FILE "log.txt"
+#define LOG_FILE "log/log.txt"
 
 sem_t mutex_log;
 

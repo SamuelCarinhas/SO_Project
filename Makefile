@@ -1,19 +1,28 @@
 CC				:= gcc
 CFLAGS			:= -Wall -Wextra -g -pthread
-OBJS			:= race_simulator.o read_config.o functions.o malfunction_manager.o race_manager.o team_manager.o
-PROG			:= project
+SRC				:= src
+OBJ				:= extra
+BINDIR			:= .
+SRCS			:= $(wildcard $(SRC)/*.c) $(wildcard $(SRC)/**/*.c)
+OBJS			:= $(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(SRCS))
+BIN				:= $(BINDIR)/project
+SUBMITFILE		:= server.zip
 
-all:			$(PROG)
+all:			$(BIN)
 
-deps 			:= $(patsubst %.o,%.d,$(OBJS))
--include $(deps)
+DEPS			:= $(patsubst $(OBJ)/%.o, $(OBJ)/%.d, $(OBJS))
+-include $(DEPS)
 DEPFLAGS 		= -MMD -MF $(@:.o=.d)
 
-project: 		$(OBJS)
-			$(CC) $(CFLAGS) $^ -o $@
+$(BIN):			$(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o $@
 
-%.o:			%.c
-			$(CC) $(CFLAGS) -c $< $(DEPFLAGS)
+$(OBJ)/%.o:		$(SRC)/%.c
+	$(CC) $(CFLAGS) -c $< -o $@ $(DEPFLAGS)
 
 clean:
-			rm -f $(OBJS) $(deps) $(PROG)
+	$(RM) -r $(BIN) $(OBJS) $(DEPS)
+
+submit:
+	$(RM) $(SUBMITFILE)
+	zip -r $(SUBMITFILE) .

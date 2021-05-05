@@ -84,11 +84,10 @@ void init() {
 *
 */
 void clean() {
-    printf("Ctrl^C pressed\n");
     while(wait(NULL) != -1);
 
     if(main_pid == getpid()) {
-        printf("Main Process Killed\n");
+        write_log("\nProgram shutdown...\n");
         destroy_mutex_log();
 
         //pthread_cond_broadcast(&shared_memory->new_command);
@@ -99,7 +98,6 @@ void clean() {
     } else {
         shared_memory->race_started = 1;
         pthread_cond_broadcast(&shared_memory->new_command);
-        printf("Child Process Killed\n");
     }
 
     exit(0);
@@ -107,6 +105,7 @@ void clean() {
 
 void show_statistics() {
     if(main_pid == getpid()) {
+        write_log("\n");
         if(shared_memory->race_started== 0) {
             write_log("STATISTICS: RACE NOT STARTED\n");
         } else {
@@ -125,8 +124,10 @@ void show_statistics() {
                 }
             }
 
+            write_log("STATISTICS:\n");
+            write_log("| RANK | CAR | TEAM | LAPS | STOPS |\n");
             for(int i = 0; i< TOP_STATISTICS; i++){
-                printf("%d: Car %d from Team %s, No laps: %d, No stops: %d\n", (i+1), best_cars[i].number, best_cars[i].team->name, (int)(best_cars[i].distance/config->lap_distance), best_cars[i].total_boxstops);
+                write_log("| %4d | %3d | %4s | %4d | %5d |\n", (i+1), best_cars[i].number, best_cars[i].team->name, (int)(best_cars[i].distance/config->lap_distance), best_cars[i].total_boxstops);
             }
         }
     }
@@ -147,7 +148,8 @@ void show_statistics() {
 int main() {
 
     signal(SIGINT, clean);
-    signal(SIGTSTP, show_statistics);
+    signal(SIGTSTP, SIG_IGN);
+
 
     config = load_config();
     if(config == NULL) return -1;
@@ -172,6 +174,7 @@ int main() {
         exit(0);
     }
 
+    signal(SIGTSTP, show_statistics);
 
     /*waitpid(race_manager_pid, NULL, 0);
     #ifdef DEBUG
