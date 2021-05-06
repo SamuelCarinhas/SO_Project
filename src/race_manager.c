@@ -8,7 +8,11 @@
 
 #include "race_manager.h"
 
+shared_memory_t * shared_memory;
+config_t * config;
 pid_t * teams_pids;
+int ** pipes;
+int fd;
 
 /*
 * NAME :                            void create_team(char * team_name, shared_memory_t * shared_memory, int pos)
@@ -24,13 +28,16 @@ pid_t * teams_pids;
 *       void
 *
 */
-void create_team(char * team_name, shared_memory_t * shared_memory, int pos, config_t * config, int pipes[][2]) {
+void create_team(char * team_name, int pos) {
     team_t * team = get_teams(shared_memory) + pos;
     strcpy(team->name, team_name);
     team->num_cars = 0;
     team->res = 0;
     team->pos_array = pos;
-    
+    pthread_mutexattr_t attrmutex;
+    pthread_mutexattr_init(&attrmutex);
+    pthread_mutexattr_setpshared(&attrmutex, PTHREAD_PROCESS_SHARED);
+    pthread_mutex_init(&team->team_mutex, &attrmutex);
 
     pipe(pipes[pos]);
 
@@ -39,7 +46,8 @@ void create_team(char * team_name, shared_memory_t * shared_memory, int pos, con
         close(pipes[pos][0]);
         team_manager(shared_memory, team, config, pipes[pos][1]);
         exit(0);
-    }
+    }else
+        close(pipes[pos][1]);
 }
 
 /*
@@ -57,11 +65,11 @@ void create_team(char * team_name, shared_memory_t * shared_memory, int pos, con
 * TODO :                            Check if the limit of teams wasn't exceeded
 *
 */
-int get_team_position(char * team_name, shared_memory_t * shared_memory, config_t * config, int pipes[][2]) {
+int get_team_position(char * team_name) {
     int pos;
     for(pos = 0; pos < shared_memory->num_teams && strcmp(get_teams(shared_memory)[pos].name, team_name); pos++);
     if(pos == shared_memory->num_teams) {
-        create_team(team_name, shared_memory, pos, config, pipes);
+        create_team(team_name, pos);
         shared_memory->num_teams++;
     }
     return pos;
@@ -83,7 +91,7 @@ int get_team_position(char * team_name, shared_memory_t * shared_memory, config_
 * TODO :                            Check the limit of cars per team and make sure the command is valid
 *
 */
-team_t * load_car(char * string, shared_memory_t * shared_memory, config_t * config, int pipes[][2]) {
+team_t * load_car(char * string) {
     char delim[2] = ",";
     char delim_b[2] = ":";
     char * token, * token_b;
@@ -97,7 +105,7 @@ team_t * load_car(char * string, shared_memory_t * shared_memory, config_t * con
         strcpy(data[i], trim(token_b));
     }
 
-    int pos_team = get_team_position(data[0], shared_memory, config, pipes);
+    int pos_team = get_team_position(data[0]);
 
     team_t * team = get_teams(shared_memory) + pos_team;
     
@@ -119,6 +127,30 @@ team_t * load_car(char * string, shared_memory_t * shared_memory, config_t * con
     return team;
 }
 
+void clean_race() {
+    for(int i = 0; i < shared_memory->num_teams; i++) {
+        waitpid(teams_pids[i], NULL, 0);
+        #ifdef DEBUG
+            write_log("DEBUG: TEAM %s IS LEAVING [%d]\n", get_teams(shared_memory)[i].name, teams_pids[i]);
+        #endif
+    }
+    
+    close(fd);
+    team_t * teams = get_teams(shared_memory);
+    for(int i = 0; i< shared_memory->num_teams; i++){
+        pthread_mutex_destroy(&teams[i].team_mutex);
+        close(pipes[i][0]);
+        close(pipes[i][1]);
+    }
+
+    for(int i = 0; i < config->teams; i++) {
+        free(pipes[i]);
+    }
+
+    free(pipes);
+    free(teams_pids);
+}
+
 /*
 * NAME :                            void race_manager(shared_memory_t * shared_memory)
 *
@@ -133,16 +165,23 @@ team_t * load_car(char * string, shared_memory_t * shared_memory, config_t * con
 * TODO :                            Handle possible errors (Creating the teams adding cars)
 *
 */
-void race_manager(shared_memory_t * shared_memory, config_t * config) {
+void race_manager(shared_memory_t * shared, config_t * conf) {
+    shared_memory = shared;
+    config = conf;
 
-    int pipes[config->teams][2];
+    signal(SIGINT, clean_race);
+
+    pipes = (int **) malloc(sizeof(int *) * config->teams);
+    for(int i = 0; i < config->teams; i++) {
+        pipes[i] = (int *) malloc(sizeof(int) * 2);
+    }
 
     #ifdef DEBUG
         write_log("DEBUG: Race manager created [%d]\n", getpid());
     #endif
 
     
-    int fd = open(PIPE_NAME, O_RDONLY|O_NONBLOCK);
+    fd = open(PIPE_NAME, O_RDONLY|O_NONBLOCK);
     if(fd < 0) {
         perror("Cannot open pipe for reading: ");
         exit(-1);
@@ -160,11 +199,11 @@ void race_manager(shared_memory_t * shared_memory, config_t * config) {
             if(FD_ISSET(fd, &read_set)){
                 read(fd, string, MAX_STRING);
                 if(starts_with(string, "ADDCAR")) {
-                    load_car(string, shared_memory, config, pipes);
+                    load_car(string);
                     pthread_cond_broadcast(&shared_memory->new_command);
                 } else if (starts_with(string, "START RACE!")) {
                     write_log("NEW COMMAND RECEIVED: START RACE \n");
-                    //VERIFICAR SE TEM EQUIPAS SUFICIENTES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    //!VERIFICAR SE TEM EQUIPAS SUFICIENTES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     shared_memory->race_started = 1;
                     pthread_cond_broadcast(&shared_memory->new_command);
                     break;
@@ -183,18 +222,11 @@ void race_manager(shared_memory_t * shared_memory, config_t * config) {
             for(int i = 0; i < shared_memory->num_teams; i++){
                 if(FD_ISSET(pipes[i][0], &read_set)){
                     read(pipes[i][0], string, MAX_STRING);
-                    write_log("%s\n", string);
+                    write_log("|| %s\n", string);
                 }
             }
         }
     }
 
-    for(int i = 0; i < shared_memory->num_teams; i++) {
-        waitpid(teams_pids[i], NULL, 0);
-        #ifdef DEBUG
-            write_log("DEBUG: TEAM %s IS LEAVING [%d]\n", get_teams(shared_memory)[i].name, teams_pids[i]);
-        #endif
-    }
-
-    free(teams_pids);
+    clean_race();
 }

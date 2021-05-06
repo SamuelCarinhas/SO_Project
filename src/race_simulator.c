@@ -93,7 +93,7 @@ void clean() {
         unlink(PIPE_NAME);
         //pthread_cond_broadcast(&shared_memory->new_command);
         //pthread_mutex_unlock(&shared_memory->mutex);
-
+        msgctl(shared_memory->message_queue, IPC_RMID, 0);
         shmdt(shared_memory);
         shmctl(shmid, IPC_RMID, NULL);
     } else {
@@ -112,10 +112,14 @@ void show_statistics() {
             write_log("STATISTICS: RACE NOT STARTED\n");
             pthread_mutex_unlock(&shared_memory->mutex);
         } else {
-            int max_statistics = (shared_memory->num_teams >= TOP_STATISTICS) ? TOP_STATISTICS : shared_memory->num_teams;
+            int n_cars = 0;
+            team_t * teams = get_teams(shared_memory);
+            for(int i = 0; i < shared_memory->num_teams; i++) {
+                n_cars += teams[i].num_cars;
+            }
+            int max_statistics = (n_cars >= TOP_STATISTICS) ? TOP_STATISTICS : n_cars;
             car_t best_cars[max_statistics];
             for(int i = 0; i < max_statistics; i++) best_cars[i].distance = -1;
-            team_t * teams = get_teams(shared_memory);
             car_t * car;
             for(int i = 0; i < shared_memory->num_teams; i++) {
                 for(int j = 0; j < teams[i].num_cars; j++) {

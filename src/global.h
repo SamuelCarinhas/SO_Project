@@ -6,8 +6,8 @@
         Samuel dos Santos Carinhas 2019217199
 */
 
-#ifndef CONSTANTS_HEADER
-#define CONSTANTS_HEADER
+#ifndef GLOBAL_HEADER
+#define GLOBAL_HEADER
 
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -54,6 +54,7 @@ typedef struct {
     int res;
     int pos_array;
     int safe_cars;
+    pthread_mutex_t team_mutex;
     enum box_status box;
 } team_t;
 

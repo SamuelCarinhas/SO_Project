@@ -12,20 +12,20 @@ typedef struct {
     shared_memory_t * shared_memory;
     car_t * car;
     config_t * config;
-    int fd;
 } arguments_t;
 
+int fd;
 
-
-void box(car_t * car, config_t * config, shared_memory_t * shared_memory) {
-    pthread_mutex_lock(&shared_memory->mutex); // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+void box(car_t * car, config_t * config) {
+    pthread_mutex_lock(&car->team->team_mutex); // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     double current_speed = (car->status == SAFE_MODE) ? 0.3*car->current_speed : car->current_speed;
     int max_laps = (int) (car->fuel / (config->lap_distance/current_speed * car->consuption));
     if((car->team->box == RESERVED && car->status == SAFE_MODE) || (car->team->box == OPEN && max_laps <= 4)) {
         car->team->box = OCCUPIED;
-        pthread_mutex_unlock(&shared_memory->mutex);
+        car->status = BOX;
+        pthread_mutex_unlock(&car->team->team_mutex);
         sleep(rand() % (config->max_repair_time - config->min_repair_time + 1) + config->min_repair_time);
-        pthread_mutex_lock(&shared_memory->mutex);
+        pthread_mutex_lock(&car->team->team_mutex);
         car->fuel = config->fuel_capacity;
         car->status = RACE;
         car->total_boxstops++;
@@ -36,7 +36,7 @@ void box(car_t * car, config_t * config, shared_memory_t * shared_memory) {
     } else {
         write_log("CAR %d TRIED TO ENTER THE BOX\n", car->number);
     }
-    pthread_mutex_unlock(&shared_memory->mutex);
+    pthread_mutex_unlock(&car->team->team_mutex);
     
 }
 
@@ -57,7 +57,6 @@ void * car_thread(void * p) {
     message_t message;
     car_t * car = arguments.car;
     config_t * config = arguments.config;
-    int fd = arguments.fd;
 
     char buffer[MAX_STRING];
 
@@ -77,19 +76,19 @@ void * car_thread(void * p) {
     while(1) {
         // !!!!!!!!!!!!!!!!!!!!!!!!!!!!! FAZER ISTO SINCRONIZADO COM AS ESTATISTICAS !!!!!!!!!!!!!!!!!!!!!!!!!!
         // DE FORMA EFICIENTE =D
-        sleep(config->time_units_per_second);
+        sleep(1/config->time_units_per_second);
         if(msgrcv(shared_memory->message_queue, &message, sizeof(message_t) - sizeof(long), car->number, IPC_NOWAIT) >= 0) {
             snprintf(buffer, MAX_STRING, "NEW PROBLEM IN CAR %d", car->number);
             write(fd, buffer, MAX_STRING);
-            pthread_mutex_lock(&shared_memory->mutex);//  ! usar um semafro por equipa
+            pthread_mutex_lock(&car->team->team_mutex);//  ! usar um semafro por equipa
             car->status = SAFE_MODE;
-            write_log("CAR %d IS IN SAFE MODE DUE TO A MALFUNCTION\n");
-            car->total_malfunctions ++;
+            write_log("CAR %d IS IN SAFE MODE DUE TO A MALFUNCTION\n", car->number);
+            car->total_malfunctions++;
             if(car->team->box == OPEN) {
                 car->team->box = RESERVED;
             }
-            car->team->safe_cars ++;
-            pthread_mutex_unlock(&shared_memory->mutex);
+            car->team->safe_cars++;
+            pthread_mutex_unlock(&car->team->team_mutex);
         }
 
         if(car->status == SAFE_MODE) {
@@ -101,27 +100,27 @@ void * car_thread(void * p) {
         }
 
         if(car->distance >= total_distance) {
-            pthread_mutex_lock(&shared_memory->mutex);
+            pthread_mutex_lock(&car->team->team_mutex);
             car->status = FINISHED;
             write_log("CAR %d FINISHED THE RACE\n", car->number);
             if(shared_memory->finish_cars == 0) {
                 write_log("CAR %d WON THE RACE\n", car->number);
             }
             shared_memory->finish_cars++;
-            pthread_mutex_unlock(&shared_memory->mutex);
+            pthread_mutex_unlock(&car->team->team_mutex);
             pthread_exit(NULL);
         } else {
             int max_laps = (int) (car->fuel / (config->lap_distance/car->speed * car->consuption));
 
             if(max_laps < 2 && car->status == RACE) {
-                pthread_mutex_lock(&shared_memory->mutex);
+                pthread_mutex_lock(&car->team->team_mutex);
                 write_log("O CARRO %d NÃO TEM GOTA\n", car->number);
                 car->status = SAFE_MODE;
                 if(car->team->box == OPEN) {
                     car->team->box = RESERVED;
                 }
                 car->team->safe_cars++;
-                pthread_mutex_unlock(&shared_memory->mutex);
+                pthread_mutex_unlock(&car->team->team_mutex);
             }
         }
         //futuro
@@ -135,22 +134,22 @@ void * car_thread(void * p) {
 
         if(car->fuel - current_consumption <= 0) {
             sleep(config->time_units_per_second * car->fuel / car->consuption);
-            pthread_mutex_lock(&shared_memory->mutex);
+            pthread_mutex_lock(&car->team->team_mutex);
             car->status = GAVE_UP;
             write_log("CAR %d GAVE UP\n", car->number);
-            pthread_mutex_unlock(&shared_memory->mutex);
+            pthread_mutex_unlock(&car->team->team_mutex);
             pthread_exit(NULL);
         }
 
         if(laps_after > laps) {
             if(car->fuel < fuel_needed) {
-                pthread_mutex_lock(&shared_memory->mutex);
+                pthread_mutex_lock(&car->team->team_mutex);
                 car->status = GAVE_UP;
                 write_log("O CARRO %d MORREU NA PRAIA\n", car->number);
-                pthread_mutex_unlock(&shared_memory->mutex);
+                pthread_mutex_unlock(&car->team->team_mutex);
                 pthread_exit(NULL);
             }
-            box(car, config, shared_memory);
+            box(car, config);
             #ifdef DEBUG
                 write_log("CAR %d COMPLETED LAP Nº%d\n", car->number, laps_after);
             #endif
@@ -160,6 +159,10 @@ void * car_thread(void * p) {
 
     pthread_exit(NULL);
     return NULL;
+}
+
+void clean_team() {
+    exit(0);
 }
 
 /*
@@ -175,7 +178,11 @@ void * car_thread(void * p) {
 *          void
 *
 */
-void team_manager(shared_memory_t * shared_memory, team_t * team, config_t * config, int fd) {
+void team_manager(shared_memory_t * shared_memory, team_t * team, config_t * config, int fd_unnamed_pipe) {
+    fd = fd_unnamed_pipe;
+    
+    signal(SIGINT, clean_team);
+
     #ifdef DEBUG
         write_log("DEBUG: Team %s manager created [%d]\n", team->name, getpid());
     #endif
@@ -199,7 +206,6 @@ void team_manager(shared_memory_t * shared_memory, team_t * team, config_t * con
         arguments.shared_memory = shared_memory;
         arguments.config = config;
         arguments.car = get_car(shared_memory, config, team->pos_array, team->res);
-        arguments.fd = fd;
         pthread_create(&arguments.car->thread, NULL, car_thread, &arguments);
         team->res++;
     }
@@ -210,4 +216,10 @@ void team_manager(shared_memory_t * shared_memory, team_t * team, config_t * con
             write_log("DEBUG: Team %s : Car %d is leaving\n", team->name, get_car(shared_memory, config, team->pos_array, i)->number);
         #endif
     }
+
+    while(1) {
+        
+    }
+
+    close(fd);
 }
