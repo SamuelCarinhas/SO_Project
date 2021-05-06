@@ -141,35 +141,41 @@ void race_manager(shared_memory_t * shared_memory, config_t * config) {
         write_log("DEBUG: Race manager created [%d]\n", getpid());
     #endif
 
-    /*
-    int fd = open(PIPE_NAME, O_RDONLY);
+    
+    int fd = open(PIPE_NAME, O_RDONLY|O_NONBLOCK);
     if(fd < 0) {
         perror("Cannot open pipe for reading: ");
         exit(-1);
     }
-    */
+
     teams_pids = (pid_t *) malloc(sizeof(pid_t) * config->teams);
 
     char string[MAX_STRING];
+    fd_set read_set;
     
     while(1) {
-        //if(read(fd, string, MAX_STRING) == 0) continue;
-        read_line(stdin, string, MAX_STRING);
-        if(starts_with(string, "ADDCAR")) {
-            load_car(string, shared_memory, config, pipes);
-            pthread_cond_broadcast(&shared_memory->new_command);
-        } else if (starts_with(string, "START RACE!")) {
-            write_log("NEW COMMAND RECEIVED: START RACE \n");
-            //VERIFICAR SE TEM EQUIPAS SUFICIENTES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            shared_memory->race_started = 1;
-            pthread_cond_broadcast(&shared_memory->new_command);
-            break;
+        FD_ZERO(&read_set);
+        FD_SET(fd, &read_set);
+        if(select(fd + 1, &read_set, NULL, NULL, NULL)>0){
+            if(FD_ISSET(fd, &read_set)){
+                read(fd, string, MAX_STRING);
+                if(starts_with(string, "ADDCAR")) {
+                    load_car(string, shared_memory, config, pipes);
+                    pthread_cond_broadcast(&shared_memory->new_command);
+                } else if (starts_with(string, "START RACE!")) {
+                    write_log("NEW COMMAND RECEIVED: START RACE \n");
+                    //VERIFICAR SE TEM EQUIPAS SUFICIENTES!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    shared_memory->race_started = 1;
+                    pthread_cond_broadcast(&shared_memory->new_command);
+                    break;
+                }
+            }
+            close(fd);
+            fd = open(PIPE_NAME, O_RDONLY|O_NONBLOCK);
         }
     }
 
-    fd_set read_set;
-
-    while(1){
+    while(1) {
         FD_ZERO(&read_set);
         for(int i = 0; i < shared_memory->num_teams; i++)
             FD_SET(pipes[i][0], &read_set);

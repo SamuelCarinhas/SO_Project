@@ -50,6 +50,8 @@ void * car_thread(void * p) {
 
     int total_distance = config->laps * config->lap_distance;
     while(1) {
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!! FAZER ISTO SINCRONIZADO COM AS ESTATISTICAS !!!!!!!!!!!!!!!!!!!!!!!!!!11
+        // DE FORMA EFICIENTE =D
         sleep(config->time_units_per_second);
         if(msgrcv(shared_memory->message_queue, &message, sizeof(message_t) - sizeof(long), car->number, IPC_NOWAIT) >= 0) {
             snprintf(buffer, MAX_STRING, "NEW PROBLEN IN CAR %d", car->number);
@@ -57,8 +59,8 @@ void * car_thread(void * p) {
             pthread_mutex_lock(&shared_memory->mutex);
             car->status = SAFE_MODE;
             pthread_mutex_unlock(&shared_memory->mutex);
-            // mandar mensagem pelo unnamed pipe
         }
+
         pthread_mutex_lock(&shared_memory->mutex);
         if(car->status == SAFE_MODE) {
             car->distance += 0.3*car->current_speed;
@@ -67,8 +69,6 @@ void * car_thread(void * p) {
             car->fuel -= car->consuption;
             car->distance += car->current_speed;
         }
-        pthread_mutex_unlock(&shared_memory->mutex);
-
 
         if(car->distance >= total_distance) {
             car->status = FINISHED;
@@ -83,6 +83,7 @@ void * car_thread(void * p) {
                 car->status = SAFE_MODE;
             }
         }
+        pthread_mutex_unlock(&shared_memory->mutex);
     }
 
     pthread_exit(NULL);

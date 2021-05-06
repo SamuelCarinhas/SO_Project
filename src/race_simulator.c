@@ -106,27 +106,31 @@ void clean() {
 void show_statistics() {
     if(main_pid == getpid()) {
         write_log("\n");
+        pthread_mutex_lock(&shared_memory->mutex);
         if(shared_memory->race_started== 0) {
             write_log("STATISTICS: RACE NOT STARTED\n");
+            pthread_mutex_unlock(&shared_memory->mutex);
         } else {
-            car_t best_cars[TOP_STATISTICS];
-            for(int i = 0; i < TOP_STATISTICS; i++) best_cars[i].distance = -1;
+            int max_statistics = (shared_memory->num_teams >= TOP_STATISTICS) ? TOP_STATISTICS : shared_memory->num_teams;
+            car_t best_cars[max_statistics];
+            for(int i = 0; i < max_statistics; i++) best_cars[i].distance = -1;
             team_t * teams = get_teams(shared_memory);
             car_t * car;
             for(int i = 0; i < shared_memory->num_teams; i++) {
                 for(int j = 0; j < teams[i].num_cars; j++) {
                     car = get_car(shared_memory, config, i, j);
                     int l;
-                    for(l = 0; l < TOP_STATISTICS && car->distance < best_cars[l].distance; l++);
-                    if(l == TOP_STATISTICS) continue;
-                    for(int k = TOP_STATISTICS - 1; k > l; k--) best_cars[k] = best_cars[k-1];
+                    for(l = 0; l < max_statistics && car->distance < best_cars[l].distance; l++);
+                    if(l == max_statistics) continue;
+                    for(int k = max_statistics - 1; k > l; k--) best_cars[k] = best_cars[k-1];
                     best_cars[l] = *car;
                 }
             }
+            pthread_mutex_unlock(&shared_memory->mutex);
 
             write_log("STATISTICS:\n");
             write_log("| RANK | CAR | TEAM | LAPS | STOPS |\n");
-            for(int i = 0; i< TOP_STATISTICS; i++){
+            for(int i = 0; i< max_statistics; i++){
                 write_log("| %4d | %3d | %4s | %4d | %5d |\n", (i+1), best_cars[i].number, best_cars[i].team->name, (int)(best_cars[i].distance/config->lap_distance), best_cars[i].total_boxstops);
             }
         }
@@ -150,11 +154,8 @@ int main() {
     signal(SIGINT, clean);
     signal(SIGTSTP, SIG_IGN);
 
-
     config = load_config();
     if(config == NULL) return -1;
-
-    
 
     pid_t race_manager_pid;
 
