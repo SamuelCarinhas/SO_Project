@@ -50,9 +50,11 @@ enum car_status {
 
 typedef struct {
     char name[MAX_STRING];
-    int num_cars, res;
+    int num_cars;
+    int res;
     int pos_array;
-    enum box_status status;
+    int safe_cars;
+    enum box_status box;
 } team_t;
 
 typedef struct {
@@ -73,6 +75,7 @@ typedef struct {
     int num_teams;
     int race_started;
     int message_queue;
+    int finish_cars;
     pthread_mutex_t mutex;
     pthread_cond_t new_command;
 } shared_memory_t;

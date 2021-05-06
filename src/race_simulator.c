@@ -68,6 +68,7 @@ void init() {
     }
     shared_memory->num_teams = 0;
     shared_memory->race_started = 0;
+    shared_memory->finish_cars = 0;
     write_log("SIMULATOR STARTING\n");
 }
 
@@ -89,7 +90,7 @@ void clean() {
     if(main_pid == getpid()) {
         write_log("\nProgram shutdown...\n");
         destroy_mutex_log();
-
+        unlink(PIPE_NAME);
         //pthread_cond_broadcast(&shared_memory->new_command);
         //pthread_mutex_unlock(&shared_memory->mutex);
 
@@ -129,9 +130,9 @@ void show_statistics() {
             pthread_mutex_unlock(&shared_memory->mutex);
 
             write_log("STATISTICS:\n");
-            write_log("| RANK | CAR | TEAM | LAPS | STOPS |\n");
+            write_log("| RANK | CAR | TEAM | LAPS | STOPS | FUEL |\n");
             for(int i = 0; i< max_statistics; i++){
-                write_log("| %4d | %3d | %4s | %4d | %5d |\n", (i+1), best_cars[i].number, best_cars[i].team->name, (int)(best_cars[i].distance/config->lap_distance), best_cars[i].total_boxstops);
+                write_log("| %4d | %3d | %4s | %4d | %5d | %4.2f\n", (i+1), best_cars[i].number, best_cars[i].team->name, (int)(best_cars[i].distance/config->lap_distance), best_cars[i].total_boxstops, best_cars[i].fuel);
             }
         }
     }
