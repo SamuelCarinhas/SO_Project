@@ -14,12 +14,8 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <string.h>
-#include "../../utils/mutexes/mutex.h"
-#include "../../utils/log/log.h"
-#include "../../tools/shared/memory.h"
 #include "../../config/config.h"
-#include "../../utils/string/string.h"
 
-void read_from_pipes(int * pipes, int n_pipes, int (* handle_read)(char * str));
+void read_from_pipes(int named, int * pipes, int n_pipes, int (* handle_read)(char * str));
 
 #endif

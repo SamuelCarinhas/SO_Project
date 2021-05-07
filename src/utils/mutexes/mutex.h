@@ -14,11 +14,8 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <string.h>
-#include "../../tools/shared/memory.h"
-#include "../../config/config.h"
-#include "../../utils/pipes/pipes.h"
-#include "../../utils/string/string.h"
 
-extern void init_mutex_procc();
+extern void init_mutex_proc(pthread_mutex_t * mutex);
+extern void init_cond_proc(pthread_cond_t * cond);
 
 #endif

@@ -52,8 +52,8 @@ void init() {
     }
 
 
-    init_mutex_procc(&shared_memory->mutex);
-    init_cond_procc(&shared_memory->new_command);
+    init_mutex_proc(&shared_memory->mutex);
+    init_cond_proc(&shared_memory->new_command);
 
     shared_memory->message_queue = msgget(IPC_PRIVATE, IPC_CREAT|0777);
     if(shared_memory->message_queue <0){
@@ -82,7 +82,7 @@ void clean() {
     while(wait(NULL) != -1);
 
     if(main_pid == getpid()) {
-        write_log("\nSIMULATOR CLOSING\n");
+        write_log("SIMULATOR CLOSING\n");
         destroy_mutex_log();
         unlink(PIPE_NAME);
         //pthread_cond_broadcast(&shared_memory->new_command);
@@ -181,6 +181,8 @@ int main() {
 
     waitpid(malfunction_manager_pid, NULL, 0);
     write_debug("MALFUNCTION MANAGER IS LEAVING [%d]\n", malfunction_manager_pid);
+
+    clean();
 
     return 0;
 }

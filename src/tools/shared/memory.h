@@ -22,11 +22,7 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <string.h>
-#include "../../utils/mutexes/mutex.h"
-#include "../../utils/log/log.h"
 #include "../../config/config.h"
-#include "../../utils/pipes/pipes.h"
-#include "../../utils/string/string.h"
 
 typedef struct shared_memory shared_memory_t;
 typedef struct team team_t;
@@ -40,7 +36,7 @@ enum car_status {
     RACE, SAFE_MODE, BOX, GAVE_UP, FINISHED
 };
 
-shared_memory_t {
+struct shared_memory {
     int num_teams;
     int race_started;
     int message_queue;
@@ -49,7 +45,7 @@ shared_memory_t {
     pthread_cond_t new_command;
 };
 
-team_t {
+struct team {
     char name[MAX_STRING];
     int num_cars;
     int res;
@@ -59,7 +55,7 @@ team_t {
     enum box_status box;
 };
 
-car_t {
+struct car {
     int number, speed, reliability,
         total_malfunctions, total_refuels, total_boxstops;
     double consuption, fuel, distance, current_speed;

@@ -22,11 +22,10 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <string.h>
-#include "../utils/mutexes/mutex.h"
 #include "../utils/log/log.h"
-#include "../tools/shared/memory.h"
-#include "../utils/pipes/pipes.h"
+#include "../utils/numeric/numeric.h"
 #include "../utils/string/string.h"
+
 
 #define MAX_STRING 100
 #define MIN_TEAMS 3
@@ -38,7 +37,7 @@
 
 typedef struct config config_t;
 
-config_t {
+struct config {
     int time_units_per_second;
     int lap_distance;
     int laps;

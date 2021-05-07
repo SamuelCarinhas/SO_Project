@@ -22,10 +22,8 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <string.h>
-#include "../../tools/shared/memory.h"
+#include <stdarg.h>
 #include "../../config/config.h"
-#include "../../utils/pipes/pipes.h"
-#include "../../utils/string/string.h"
 
 sem_t mutex_log;
 

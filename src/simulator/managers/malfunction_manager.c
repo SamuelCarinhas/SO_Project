@@ -30,7 +30,8 @@ void malfunction_signal_handler();
 */
 void malfunction_manager(shared_memory_t * shared, config_t * conf) {
     write_debug("MALFUNCTION MANAGER CREATED [%d]\n", getpid());
-    signal(SIGUSR1, malfunction_signal_handler);
+    signal(SIGINT, malfunction_signal_handler);
+    //signal(SIGUSR1, malfunction_signal_handler);
     shared_memory = shared;
     config = conf;
     malfunction_generator();
@@ -72,8 +73,11 @@ void malfunction_generator() {
 }
 
 void malfunction_signal_handler() {
+    exit(0);
+    /*
     pthread_mutex_lock(&shared_memory->mutex);
     shared_memory->race_started = 0;
     pthread_mutex_unlock(&shared_memory->mutex);
     malfunction_generator();
+    */
 }

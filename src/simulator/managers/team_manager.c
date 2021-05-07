@@ -10,7 +10,7 @@
 
 typedef struct argument arguments_t;
 
-arguments_t {
+struct argument {
     shared_memory_t * shared_memory;
     car_t * car;
     config_t * config;
@@ -37,8 +37,6 @@ void box(car_t * car, config_t * config) {
         car->team->box = (car->team->safe_cars > 0) ? RESERVED : OPEN;
         write_log("CAR %d LEFT THE BOX\n", car->number);
         
-    } else {
-        write_log("CAR %d TRIED TO ENTER THE BOX\n", car->number);
     }
     pthread_mutex_unlock(&car->team->team_mutex);
     
@@ -182,23 +180,19 @@ void team_manager(shared_memory_t * shared_memory, team_t * team, config_t * con
     
     signal(SIGINT, clean_team);
 
-    write_debug("TEAM MANAGER %D CREATED[%d]\n", team->name, getpid());
+    write_debug("TEAM MANAGER %s CREATED[%d]\n", team->name, getpid());
     
     while(1) {
-
         pthread_mutex_lock(&shared_memory->mutex);
         while (team->num_cars == team->res && shared_memory->race_started == 0) {
             pthread_cond_wait(&shared_memory->new_command, &shared_memory->mutex);
         }
-
         int can_start = shared_memory->race_started;
 
         pthread_mutex_unlock(&shared_memory->mutex);
-        
         if(can_start) {
             break;
         }
-        
         arguments_t arguments;
         arguments.shared_memory = shared_memory;
         arguments.config = config;
@@ -206,7 +200,6 @@ void team_manager(shared_memory_t * shared_memory, team_t * team, config_t * con
         pthread_create(&arguments.car->thread, NULL, car_thread, &arguments);
         team->res++;
     }
-
     for(int i = 0; i < team->res; i++) {
         pthread_join(get_cars(shared_memory, config)[i].thread, NULL);
         write_debug("TEAM %s : CAR %d IS LEAVING\n", team->name, get_car(shared_memory, config, team->pos_array, i)->number);

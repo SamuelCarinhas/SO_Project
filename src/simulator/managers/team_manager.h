@@ -25,6 +25,7 @@
 #include "../race_simulator.h"
 #include "../../utils/mutexes/mutex.h"
 #include "../../utils/log/log.h"
+#include "../../tools/messages/message.h"
 #include "../../tools/shared/memory.h"
 #include "../../config/config.h"
 #include "../../utils/pipes/pipes.h"

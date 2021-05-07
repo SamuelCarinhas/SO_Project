@@ -77,11 +77,12 @@ void write_log(char * format, ...) {
     sem_wait(&mutex_log);
     
     va_list arg;
+
     va_start(arg, format);
-
     private_write_log(tm_struct, format, arg, 0);
+    va_end(arg);
+    va_start(arg, format);
     private_write_stdout(tm_struct, format, arg, 0);
-
     va_end(arg);
     
     sem_post(&mutex_log);
@@ -96,10 +97,10 @@ void write_debug(char * format, ...) {
         
         va_list arg;
         va_start(arg, format);
-
         private_write_log(tm_struct, format, arg, 1);
+        va_end(arg);
+        va_start(arg, format);
         private_write_stdout(tm_struct, format, arg, 1);
-
         va_end(arg);
         
         sem_post(&mutex_log);

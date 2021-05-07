@@ -22,13 +22,8 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <string.h>
-#include "../../tools/shared/memory.h"
-#include "../../config/config.h"
-#include "../../utils/pipes/pipes.h"
-#include "../../utils/string/string.h"
-
-#include <string.h>
-#include "string.h"
+#include <ctype.h>
+#include "../string/string.h"
 
 extern int is_number(char * string);
 extern int is_float(char * string);

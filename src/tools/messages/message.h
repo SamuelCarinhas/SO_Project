@@ -6,13 +6,14 @@
         Samuel dos Santos Carinhas 2019217199
 */
 
-#ifdef MESSAGE_HEADER
+#ifndef MESSAGE_HEADER
 #define MESSAGE_HEADER
 
 #include <stdio.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/wait.h>
+#include <sys/msg.h>
 #include <sys/types.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -22,16 +23,10 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <string.h>
-#include "../../utils/mutexes/mutex.h"
-#include "../../utils/log/log.h"
-#include "../../tools/shared/memory.h"
-#include "../../config/config.h"
-#include "../../utils/pipes/pipes.h"
-#include "../../utils/string/string.h"
 
 typedef struct message message_t;
 
-message_t {
+struct message {
     long car_number;
     int malfunction;
 };

@@ -22,11 +22,6 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <string.h>
-#include "../../utils/mutexes/mutex.h"
-#include "../../utils/log/log.h"
-#include "../../tools/shared/memory.h"
-#include "../../config/config.h"
-#include "../../utils/pipes/pipes.h"
 
 extern char * trim(char * string);
 extern int starts_with(char * a, char * b);

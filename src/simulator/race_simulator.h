@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/msg.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <stdlib.h>
@@ -22,6 +23,7 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 #include "./managers/malfunction_manager.h"
 #include "./managers/race_manager.h"
 #include "./managers/team_manager.h"
