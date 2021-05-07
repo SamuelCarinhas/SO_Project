@@ -6,7 +6,8 @@ BINDIR			:= .
 SRCS			:= $(wildcard $(SRC)/*.c) $(wildcard $(SRC)/**/*.c)
 OBJS			:= $(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(SRCS))
 BIN				:= $(BINDIR)/project
-SUBMITFILE		:= server.zip
+SUBMITFILE		:= teste.zip
+BUILD_DIR		:= build
 
 all:			$(BIN)
 
@@ -18,10 +19,16 @@ $(BIN):			$(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $@
 
 $(OBJ)/%.o:		$(SRC)/%.c
+	rsync -a --include='*/' --exclude='*' $(SRC)/ $(OBJ)/
 	$(CC) $(CFLAGS) -c $< -o $@ $(DEPFLAGS)
 
 clean:
 	$(RM) -r $(BIN) $(OBJS) $(DEPS)
+	$(RM) -r $(OBJ)
+
+deploy:
+	mkdir -p $(BUILD_DIR)
+	cp	$(BIN)	$(BUILD_DIR)/$(BIN)
 
 submit:
 	$(RM) $(SUBMITFILE)
