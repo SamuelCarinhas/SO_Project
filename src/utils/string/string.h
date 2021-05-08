@@ -26,5 +26,7 @@
 extern char * trim(char * string);
 extern int starts_with(char * a, char * b);
 extern int read_line(FILE * file, char * line, int max_len);
+extern void remove_endline(char * string);
+extern int ends_with(char * a, char * b);
 
 #endif

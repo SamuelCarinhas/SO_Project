@@ -14,6 +14,8 @@ pid_t * teams_pids;
 int ** pipes;
 int fd;
 
+void race();
+
 /*
 * NAME :                            void create_team(char * team_name, shared_memory_t * shared_memory, int pos)
 *
@@ -89,7 +91,7 @@ int get_team_position(char * team_name) {
 * TODO :                            Check the limit of cars per team and make sure the command is valid
 *
 */
-team_t * load_car(char * string) {
+void load_car(char * string) {
     char delim[2] = ",";
     char delim_b[2] = ":";
     char * token, * token_b;
@@ -107,6 +109,11 @@ team_t * load_car(char * string) {
 
     team_t * team = get_teams(shared_memory) + pos_team;
 
+    if(team->num_cars == config->max_cars_per_team) {
+        write_log("TEAM %s CAN'T HAVE MORE CARS [MAX OF %d CARS]\n", team->name, config->max_cars_per_team);
+        return;
+    }
+
     // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FAZER AS VALIDAÇÕES !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     int pos_car = team->num_cars;
@@ -119,12 +126,19 @@ team_t * load_car(char * string) {
     car->reliability = atoi(data[4]);
     car->fuel = config->fuel_capacity;
     car->distance = 0;
-    team->num_cars++;
     car->total_malfunctions = 0;
     car->total_refuels = 0;
     car->total_boxstops = 0;
+    shared_memory->total_cars++;
+    team->num_cars++;
+}
 
-    return team;
+void reset_race() {
+    pthread_mutex_lock(&shared_memory->mutex);
+    shared_memory->race_started = 0;
+    pthread_mutex_unlock(&shared_memory->mutex);
+    race();
+    exit(0);
 }
 
 void clean_race() {
@@ -152,25 +166,55 @@ void clean_race() {
 }
 
 int command_handler(char * string) {
-    if(starts_with(string, "ADDCAR")) {
-        load_car(string);
-        pthread_cond_broadcast(&shared_memory->new_command);
-    } else if (starts_with(string, "START RACE!")) {
-        write_log("NEW COMMAND RECEIVED: START RACE\n");
-        if(shared_memory->num_teams < MIN_TEAMS) {
-            write_log("CANNOT START, NOT ENOUGH TEAMS\n");
-            return 0;
+    pthread_mutex_lock(&shared_memory->mutex);
+    if(shared_memory->race_started == 0) {
+        pthread_mutex_unlock(&shared_memory->mutex);
+        if(starts_with(string, "ADDCAR")) {
+            load_car(string);
+            pthread_cond_broadcast(&shared_memory->new_command);
+        } else if (starts_with(string, "START RACE!")) {
+            write_log("NEW COMMAND RECEIVED: START RACE\n");
+            pthread_mutex_lock(&shared_memory->mutex);
+            if(shared_memory->num_teams < MIN_TEAMS) {
+                pthread_mutex_unlock(&shared_memory->mutex);
+                write_log("CANNOT START, NOT ENOUGH TEAMS\n");
+                return 0;
+            }
+            shared_memory->race_started = 1;
+            pthread_mutex_unlock(&shared_memory->mutex);
+            pthread_cond_broadcast(&shared_memory->new_command);
+            return 1;
         }
-        shared_memory->race_started = 1;
-        pthread_cond_broadcast(&shared_memory->new_command);
-        return 1;
+    } else {
+        pthread_mutex_unlock(&shared_memory->mutex);
+        write_log("\"%s\" : REJECTED, RACE ALREADY STARTED!\n", string);
     }
     return 0;
 }
 
 int receive_car_messages(char * string) {
     write_log("%s\n", string);
+    if(ends_with(string, "FINISHED THE RACE") || ends_with(string, "GAVE UP")) {
+        pthread_mutex_lock(&shared_memory->mutex);
+        if(shared_memory->finish_cars == shared_memory->total_cars) {
+            pthread_mutex_unlock(&shared_memory->mutex);
+            write_log("RACE FINISHED\n");
+            return 1;
+        }
+        pthread_mutex_unlock(&shared_memory->mutex);
+    }
+
     return 0;
+}
+
+void race() {
+    read_from_pipes(&fd, 1, NULL, command_handler);
+
+    int pipe_arr[shared_memory->num_teams + 1];
+    pipe_arr[0] = fd;
+    for(int i = 1; i <= shared_memory->num_teams; i++)
+        pipe_arr[i] = pipes[i-1][0];
+    read_from_pipes(pipe_arr, shared_memory->num_teams + 1, receive_car_messages, command_handler);
 }
 
 /*
@@ -192,6 +236,7 @@ void race_manager(shared_memory_t * shared, config_t * conf) {
     config = conf;
 
     signal(SIGINT, clean_race);
+    signal(SIGUSR1, reset_race);
 
     pipes = (int **) malloc(sizeof(int *) * config->teams);
     for(int i = 0; i < config->teams; i++)
@@ -208,12 +253,7 @@ void race_manager(shared_memory_t * shared, config_t * conf) {
     teams_pids = (pid_t *) malloc(sizeof(pid_t) * config->teams);
 
     //read comments from named pipe
-    read_from_pipes(1, &fd, 1, command_handler);
-
-    int pipe_arr[shared_memory->num_teams];
-    for(int i = 0; i < shared_memory->num_teams; i++)
-        pipe_arr[i] = pipes[i][0];
-    read_from_pipes(0, pipe_arr, shared_memory->num_teams, receive_car_messages);
+    race();
 
     clean_race();
 }

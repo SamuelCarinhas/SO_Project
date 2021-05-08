@@ -12,7 +12,7 @@ shared_memory_t * shared_memory;
 config_t * config;
 
 void malfunction_generator();
-void malfunction_signal_handler();
+void malfunction_signal_handler(int sig);
 
 /*
 * NAME :                            void race_manager(shared_memory_t * shared_memory)
@@ -31,7 +31,7 @@ void malfunction_signal_handler();
 void malfunction_manager(shared_memory_t * shared, config_t * conf) {
     write_debug("MALFUNCTION MANAGER CREATED [%d]\n", getpid());
     signal(SIGINT, malfunction_signal_handler);
-    //signal(SIGUSR1, malfunction_signal_handler);
+    signal(SIGUSR1, malfunction_signal_handler);
     shared_memory = shared;
     config = conf;
     malfunction_generator();
@@ -42,16 +42,16 @@ void malfunction_generator() {
     
     srand(getpid());
 
-    pthread_mutex_lock(&shared_memory->mutex);
-    while (shared_memory->race_started == 0)
-        pthread_cond_wait(&shared_memory->new_command, &shared_memory->mutex);
-    pthread_mutex_unlock(&shared_memory->mutex);
+    wait_for_start(shared_memory);
 
     message_t message;
     message.malfunction = 1;
 
     while(1) {
         usleep(1.0/config->time_units_per_second * config->malfunction_time_units * 1000000);
+        if(shared_memory->total_cars == shared_memory->finish_cars) {
+            exit(0);
+        }
         for(i = 0; i < shared_memory->num_teams; i++) {
             for(j = 0; j < get_teams(shared_memory)[i].num_cars; j++) {
                 car_t * car = get_car(shared_memory, config, i, j);
@@ -72,12 +72,17 @@ void malfunction_generator() {
     }
 }
 
-void malfunction_signal_handler() {
-    exit(0);
-    /*
-    pthread_mutex_lock(&shared_memory->mutex);
-    shared_memory->race_started = 0;
-    pthread_mutex_unlock(&shared_memory->mutex);
-    malfunction_generator();
-    */
+void malfunction_signal_handler(int sig) {
+    if(sig == SIGINT)
+        exit(0);
+    else if(sig == SIGUSR1) {
+        pthread_mutex_lock(&shared_memory->mutex);
+        shared_memory->race_started = 0;
+        pthread_mutex_unlock(&shared_memory->mutex);
+
+        wait_for_start(shared_memory);
+        
+        malfunction_generator();
+        exit(0);
+    }
 }

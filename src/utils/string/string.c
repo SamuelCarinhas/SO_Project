@@ -11,7 +11,7 @@
 *
 * NAME :                            char * trim(char * string)
 *
-* DESCRIPTION :                     Deletes whitespaces atthe beginnig and at the end
+* DESCRIPTION :                     Deletes whitespaces at the beginnig and at the end
 *
 * PARAMETERS :
 *           char *                  string                  pointer to a string
@@ -31,6 +31,20 @@ char * trim(char * string) {
     *(current+1) = '\0';
 
     return string;
+}
+
+void remove_endline(char * string) {
+
+    char * current = string;
+    while(*current) {
+        if(*current == '\r' || *current == '\n') {
+            *current = '\0';
+            return;
+        }
+        current++;
+    }
+
+    return;
 }
 
 /*
@@ -56,6 +70,34 @@ int starts_with(char * a, char * b) {
         if(a[i] != b[i])
             return 0;
 
+    return 1;
+}
+
+
+/*
+* NAME :                            int ends_with(char * a, char * b)
+*
+* DESCRIPTION :                     Checks if string 'a' ends with string 'b'
+*
+* PARAMETERS :
+*           char *                  a                  First String
+*           char *                  b                  Second String
+*
+*       
+* RETURN :
+*           int                     1 if 'a' ends with 'b', 0 otherwise
+*
+*/
+int ends_with(char * a, char * b) {
+    int len_b = (int) strlen(b);
+    int len_a = (int) strlen(a);
+
+    if(len_b > len_a)
+        return 0;
+
+    for(int i = len_b - 1, j = len_a -1; i>=0 ; i--, j--)
+        if(a[j] != b[i])
+            return 0;
     return 1;
 }
 

@@ -40,9 +40,11 @@ struct shared_memory {
     int num_teams;
     int race_started;
     int message_queue;
+    int total_cars;
     int finish_cars;
     pthread_mutex_t mutex;
     pthread_cond_t new_command;
+    pthread_cond_t start_race;
 };
 
 struct team {
@@ -64,6 +66,7 @@ struct car {
     enum car_status status;
 };
 
+extern void wait_for_start(shared_memory_t * shared_memory);
 extern team_t * get_teams(shared_memory_t * shared_memory);
 extern car_t * get_cars(shared_memory_t * shared_memory, config_t * config);
 extern car_t * get_car(shared_memory_t * shared_memory, config_t * config, int pos_team, int pos_car);

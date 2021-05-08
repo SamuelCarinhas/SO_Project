@@ -22,6 +22,7 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <string.h>
+#include <regex.h>  
 #include "../race_simulator.h"
 #include "../../utils/mutexes/mutex.h"
 #include "../../utils/log/log.h"

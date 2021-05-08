@@ -16,6 +16,7 @@
 #include <string.h>
 #include "../../config/config.h"
 
-void read_from_pipes(int named, int * pipes, int n_pipes, int (* handle_read)(char * str));
+extern void read_from_pipes(int * pipes, int n_pipes, int (* handle_unnamed_pipe)(char * str), int (* handle_named_pipe)(char * str));
+extern void write_pipe(int fd, char * format, ...);
 
 #endif

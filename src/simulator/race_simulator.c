@@ -63,6 +63,7 @@ void init() {
     shared_memory->num_teams = 0;
     shared_memory->race_started = 0;
     shared_memory->finish_cars = 0;
+    shared_memory->total_cars = 0;
     write_log("SIMULATOR STARTING\n");
 }
 
@@ -101,7 +102,7 @@ void clean() {
 void show_statistics() {
     if(main_pid == getpid()) {
         write_log("\n");
-        pthread_mutex_lock(&shared_memory->mutex);
+        pthread_mutex_lock(&shared_memory->mutex); //!!!!!!!!!!!!!!!!!!!!! USAR MUTEX DAS EQUIPAS !!!!!!!!!!!!!!!!!!!!!!!!!!
         if(shared_memory->race_started == 0) {
             write_log("STATISTICS: RACE NOT STARTED\n");
             pthread_mutex_unlock(&shared_memory->mutex);
