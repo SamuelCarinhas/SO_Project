@@ -31,6 +31,6 @@
 #include "../../utils/pipes/pipes.h"
 #include "../../utils/string/string.h"
 
-extern void race_manager(shared_memory_t * shared_memory, config_t * config);
+extern void race_manager(shared_memory_t * shared_memory, config_t * config, pid_t malfunction_manager_pid);
 
 #endif

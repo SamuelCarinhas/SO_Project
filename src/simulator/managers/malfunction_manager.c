@@ -10,7 +10,6 @@
 
 shared_memory_t * shared_memory;
 config_t * config;
-
 void malfunction_generator();
 void malfunction_signal_handler(int sig);
 
@@ -42,7 +41,7 @@ void malfunction_generator() {
     
     srand(getpid());
 
-    wait_for_start(shared_memory);
+    wait_for_start(shared_memory, &shared_memory->mutex);
 
     message_t message;
     message.malfunction = 1;
@@ -76,12 +75,7 @@ void malfunction_signal_handler(int sig) {
     if(sig == SIGINT)
         exit(0);
     else if(sig == SIGUSR1) {
-        pthread_mutex_lock(&shared_memory->mutex);
-        shared_memory->race_started = 0;
-        pthread_mutex_unlock(&shared_memory->mutex);
-
-        wait_for_start(shared_memory);
-        
+        write_debug("MALFUNCTION: SIGUSR RECEIVED\n");
         malfunction_generator();
         exit(0);
     }

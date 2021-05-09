@@ -8,11 +8,28 @@
 
 #include "memory.h"
 
-void wait_for_start(shared_memory_t * shared_memory) {
-    pthread_mutex_lock(&shared_memory->mutex);
+void init_car(car_t * car, config_t * config) {
+    car->status = RACE;
+    car->fuel = config->fuel_capacity;
+    car->distance = 0;
+    car->total_malfunctions = 0;
+    car->total_refuels = 0;
+    car->total_boxstops = 0;
+}
+
+void init_team(team_t * team) {
+    team->safe_cars = 0;
+}
+
+void init_memory(shared_memory_t * shared_memory) {
+    shared_memory->finish_cars = 0;
+}
+
+void wait_for_start(shared_memory_t * shared_memory, pthread_mutex_t * mutex) {
+    pthread_mutex_lock(mutex);
     while (shared_memory->race_started == 0)
-        pthread_cond_wait(&shared_memory->new_command, &shared_memory->mutex);
-    pthread_mutex_unlock(&shared_memory->mutex);
+        pthread_cond_wait(&shared_memory->new_command, mutex);
+    pthread_mutex_unlock(mutex);
 }
 
 team_t * get_teams(shared_memory_t * shared_memory) {

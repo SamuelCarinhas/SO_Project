@@ -15,8 +15,6 @@ int shmid;
 
 pid_t main_pid;
 
-
-
 /*
 * NAME :                            void init()
 *
@@ -53,7 +51,9 @@ void init() {
 
 
     init_mutex_proc(&shared_memory->mutex);
+    init_mutex_proc(&shared_memory->mutex_reset);
     init_cond_proc(&shared_memory->new_command);
+    init_cond_proc(&shared_memory->reset_race);
 
     shared_memory->message_queue = msgget(IPC_PRIVATE, IPC_CREAT|0777);
     if(shared_memory->message_queue <0){
@@ -62,9 +62,9 @@ void init() {
     }
     shared_memory->num_teams = 0;
     shared_memory->race_started = 0;
-    shared_memory->finish_cars = 0;
+    init_memory(shared_memory);
     shared_memory->total_cars = 0;
-    write_log("SIMULATOR STARTING\n");
+    write_log("SIMULATOR STARTING [%d]\n", getpid());
 }
 
 /*
@@ -83,7 +83,7 @@ void clean() {
     while(wait(NULL) != -1);
 
     if(main_pid == getpid()) {
-        write_log("SIMULATOR CLOSING\n");
+        write_log("SIMULATOR CLOSING [%d]\n", getpid());
         destroy_mutex_log();
         unlink(PIPE_NAME);
         //pthread_cond_broadcast(&shared_memory->new_command);
@@ -131,7 +131,7 @@ void show_statistics() {
             write_log("STATISTICS:\n");
             write_log("| RANK | CAR | TEAM | LAPS | STOPS | FUEL |\n");
             for(int i = 0; i< max_statistics; i++){
-                write_log("| %4d | %3d | %4s | %4d | %5d | %4.2f\n", (i+1), best_cars[i].number, best_cars[i].team->name, (int)(best_cars[i].distance/config->lap_distance), best_cars[i].total_boxstops, best_cars[i].fuel);
+                write_log("| %4d | %3d | %4s | %4d | %5d | %4.1f |\n", (i+1), best_cars[i].number, best_cars[i].team->name, (int)(best_cars[i].distance/config->lap_distance), best_cars[i].total_boxstops, best_cars[i].fuel);
             }
         }
     }
@@ -157,21 +157,19 @@ int main() {
     config = load_config();
     if(config == NULL) return -1;
 
-    pid_t race_manager_pid;
+    pid_t race_manager_pid, malfunction_manager_pid;
 
     init();
-
-    race_manager_pid = fork();
-    if(race_manager_pid == 0) {
-        race_manager(shared_memory, config);
-        exit(0);
-    }
-
-    pid_t malfunction_manager_pid;
 
     malfunction_manager_pid = fork();
     if(malfunction_manager_pid == 0) {
         malfunction_manager(shared_memory, config);
+        exit(0);
+    }
+
+    race_manager_pid = fork();
+    if(race_manager_pid == 0) {
+        race_manager(shared_memory, config, malfunction_manager_pid);
         exit(0);
     }
 

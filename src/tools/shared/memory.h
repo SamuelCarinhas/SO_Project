@@ -42,9 +42,8 @@ struct shared_memory {
     int message_queue;
     int total_cars;
     int finish_cars;
-    pthread_mutex_t mutex;
-    pthread_cond_t new_command;
-    pthread_cond_t start_race;
+    pthread_mutex_t mutex, mutex_reset;
+    pthread_cond_t new_command, reset_race;
 };
 
 struct team {
@@ -60,15 +59,18 @@ struct team {
 struct car {
     int number, speed, reliability,
         total_malfunctions, total_refuels, total_boxstops;
-    double consuption, fuel, distance, current_speed;
+    double consumption, fuel, distance, current_speed;
     team_t * team;
     pthread_t thread;
     enum car_status status;
 };
 
-extern void wait_for_start(shared_memory_t * shared_memory);
+extern void wait_for_start(shared_memory_t * shared_memory, pthread_mutex_t* mutex);
 extern team_t * get_teams(shared_memory_t * shared_memory);
 extern car_t * get_cars(shared_memory_t * shared_memory, config_t * config);
 extern car_t * get_car(shared_memory_t * shared_memory, config_t * config, int pos_team, int pos_car);
+extern void init_car(car_t * car, config_t * config);
+extern void init_team(team_t * team);
+extern void init_memory(shared_memory_t * shared_memory);
 
 #endif
