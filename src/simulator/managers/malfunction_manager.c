@@ -29,14 +29,14 @@ void malfunction_signal_handler(int sig);
 */
 void malfunction_manager(shared_memory_t * shared, config_t * conf) {
     write_debug("MALFUNCTION MANAGER CREATED [%d]\n", getpid());
-    signal(SIGINT, malfunction_signal_handler);
-    signal(SIGUSR1, malfunction_signal_handler);
     shared_memory = shared;
     config = conf;
     malfunction_generator();
 }
 
 void malfunction_generator() {
+    signal(SIGINT, malfunction_signal_handler);
+    signal(SIGUSR1, malfunction_signal_handler);
     int i, j, rand_num;
     
     srand(getpid());
@@ -76,7 +76,6 @@ void malfunction_signal_handler(int sig) {
         exit(0);
     else if(sig == SIGUSR1) {
         write_debug("MALFUNCTION: SIGUSR RECEIVED\n");
-        malfunction_generator();
-        exit(0);
+        wait_for_start(shared_memory, &shared_memory->mutex);
     }
 }

@@ -136,6 +136,11 @@ void load_car(char * string) {
 
 void reset_race() {
     pthread_mutex_lock(&shared_memory->mutex);
+    if(shared_memory->race_started == 0) {
+        pthread_mutex_unlock(&shared_memory->mutex);
+        write_log("UM PRINT QUALQUER COISA SÓ PARA AGORA DIZER AHAHAHAHAH ahah IIIIIIIIIIIIIIIIIIIII AHAHAHAHAH AAAAAAAAAAAAAAAAAAAA HHHHHHHHHHH\n");
+        return;
+    }
     shared_memory->race_started = 0;
     pthread_mutex_unlock(&shared_memory->mutex);
 
@@ -149,6 +154,8 @@ void reset_race() {
         pipe_arr[i] = pipes[i-1][0];
     read_from_pipes(pipe_arr, shared_memory->num_teams + 1, receive_car_messages, command_handler);
 
+    show_statistics(shared_memory, config);
+
     init_memory(shared_memory);
     team_t * teams = get_teams(shared_memory);
     for(int i = 0; i < shared_memory->num_teams; i++) {
@@ -158,10 +165,8 @@ void reset_race() {
             init_car(get_car(shared_memory, config, team->pos_array, j), config);
         }
     }
-    
-    write_log("RACE WAS RESETED =D\n");
-    race();
-    exit(0);
+
+    write_log("RACE WAS RESETED\n");
 }
 
 void clean_race() {
@@ -201,18 +206,18 @@ int command_handler(char * string) {
             if(shared_memory->num_teams < MIN_TEAMS) {
                 pthread_mutex_unlock(&shared_memory->mutex);
                 write_log("CANNOT START, NOT ENOUGH TEAMS\n");
-                return 0;
+                return OK;
             }
             shared_memory->race_started = 1;
             pthread_mutex_unlock(&shared_memory->mutex);
             pthread_cond_broadcast(&shared_memory->new_command);
-            return 1;
+            return END;
         }
     } else {
         pthread_mutex_unlock(&shared_memory->mutex);
         write_log("\"%s\" : REJECTED, RACE ALREADY STARTED!\n", string);
     }
-    return 0;
+    return OK;
 }
 
 int receive_car_messages(char * string) {
@@ -222,22 +227,28 @@ int receive_car_messages(char * string) {
         if(shared_memory->finish_cars == shared_memory->total_cars) {
             pthread_mutex_unlock(&shared_memory->mutex);
             write_log("RACE FINISHED\n");
-            return 1;
+            return END;
         }
         pthread_mutex_unlock(&shared_memory->mutex);
-    }
+    } else if(ends_with(string, "RESET"))
+        return RESET;
 
-    return 0;
+    return OK;
 }
 
 void race() {
-    read_from_pipes(&fd, 1, NULL, command_handler);
+    signal(SIGUSR1, reset_race);
 
-    int pipe_arr[shared_memory->num_teams + 1];
-    pipe_arr[0] = fd;
-    for(int i = 1; i <= shared_memory->num_teams; i++)
-        pipe_arr[i] = pipes[i-1][0];
-    read_from_pipes(pipe_arr, shared_memory->num_teams + 1, receive_car_messages, command_handler);
+    while(1) {
+        read_from_pipes(&fd, 1, NULL, command_handler);
+
+        int pipe_arr[shared_memory->num_teams + 1];
+        pipe_arr[0] = fd;
+        for(int i = 1; i <= shared_memory->num_teams; i++)
+            pipe_arr[i] = pipes[i-1][0];
+        
+        if(read_from_pipes(pipe_arr, shared_memory->num_teams + 1, receive_car_messages, command_handler) != RESET) break;
+    }
 }
 
 /*
@@ -260,7 +271,6 @@ void race_manager(shared_memory_t * shared, config_t * conf, pid_t malfunction) 
     malfunction_manager_pid = malfunction;
 
     signal(SIGINT, clean_race);
-    signal(SIGUSR1, reset_race);
 
     pipes = (int **) malloc(sizeof(int *) * config->teams);
     for(int i = 0; i < config->teams; i++)

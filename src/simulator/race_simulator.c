@@ -83,11 +83,10 @@ void clean() {
     while(wait(NULL) != -1);
 
     if(main_pid == getpid()) {
+        show_statistics(shared_memory, config);
         write_log("SIMULATOR CLOSING [%d]\n", getpid());
         destroy_mutex_log();
         unlink(PIPE_NAME);
-        //pthread_cond_broadcast(&shared_memory->new_command);
-        //pthread_mutex_unlock(&shared_memory->mutex);
         msgctl(shared_memory->message_queue, IPC_RMID, 0);
         shmdt(shared_memory);
         shmctl(shmid, IPC_RMID, NULL);
@@ -99,42 +98,11 @@ void clean() {
     exit(0);
 }
 
-void show_statistics() {
-    if(main_pid == getpid()) {
-        write_log("\n");
-        pthread_mutex_lock(&shared_memory->mutex); //!!!!!!!!!!!!!!!!!!!!! USAR MUTEX DAS EQUIPAS !!!!!!!!!!!!!!!!!!!!!!!!!!
-        if(shared_memory->race_started == 0) {
-            write_log("STATISTICS: RACE NOT STARTED\n");
-            pthread_mutex_unlock(&shared_memory->mutex);
-        } else {
-            int n_cars = 0;
-            team_t * teams = get_teams(shared_memory);
-            for(int i = 0; i < shared_memory->num_teams; i++) {
-                n_cars += teams[i].num_cars;
-            }
-            int max_statistics = (n_cars >= TOP_STATISTICS) ? TOP_STATISTICS : n_cars;
-            car_t best_cars[max_statistics];
-            for(int i = 0; i < max_statistics; i++) best_cars[i].distance = -1;
-            car_t * car;
-            for(int i = 0; i < shared_memory->num_teams; i++) {
-                for(int j = 0; j < teams[i].num_cars; j++) {
-                    car = get_car(shared_memory, config, i, j);
-                    int l;
-                    for(l = 0; l < max_statistics && car->distance < best_cars[l].distance; l++);
-                    if(l == max_statistics) continue;
-                    for(int k = max_statistics - 1; k > l; k--) best_cars[k] = best_cars[k-1];
-                    best_cars[l] = *car;
-                }
-            }
-            pthread_mutex_unlock(&shared_memory->mutex);
-
-            write_log("STATISTICS:\n");
-            write_log("| RANK | CAR | TEAM | LAPS | STOPS | FUEL |\n");
-            for(int i = 0; i< max_statistics; i++){
-                write_log("| %4d | %3d | %4s | %4d | %5d | %4.1f |\n", (i+1), best_cars[i].number, best_cars[i].team->name, (int)(best_cars[i].distance/config->lap_distance), best_cars[i].total_boxstops, best_cars[i].fuel);
-            }
-        }
-    }
+void signal_tstp() {
+    if(shared_memory->race_started)
+        show_statistics(shared_memory, config);
+    else
+        write_log("RACE NOT STARTED\n");
 }
 
 /*
@@ -153,6 +121,7 @@ int main() {
 
     signal(SIGINT, clean);
     signal(SIGTSTP, SIG_IGN);
+    signal(SIGUSR1, SIG_IGN);
 
     config = load_config();
     if(config == NULL) return -1;
@@ -173,14 +142,14 @@ int main() {
         exit(0);
     }
 
-    signal(SIGTSTP, show_statistics);
+    signal(SIGTSTP, signal_tstp);
 
     waitpid(race_manager_pid, NULL, 0);
     write_debug("RACE MANAGER IS LEAVING [%d]\n", race_manager_pid);
 
     waitpid(malfunction_manager_pid, NULL, 0);
     write_debug("MALFUNCTION MANAGER IS LEAVING [%d]\n", malfunction_manager_pid);
-
+    
     clean();
 
     return 0;

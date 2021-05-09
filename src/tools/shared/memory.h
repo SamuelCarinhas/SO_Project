@@ -72,5 +72,6 @@ extern car_t * get_car(shared_memory_t * shared_memory, config_t * config, int p
 extern void init_car(car_t * car, config_t * config);
 extern void init_team(team_t * team);
 extern void init_memory(shared_memory_t * shared_memory);
+extern void show_statistics(shared_memory_t * shared_memory, config_t * config_t);
 
 #endif

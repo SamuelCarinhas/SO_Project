@@ -79,7 +79,7 @@ void car_simulator(void * arg) {
         int laps = (int) (car->distance / config->lap_distance);
         int laps_after = (int)((car->distance + current_speed) / config->lap_distance);
         //double distance_until_box = (laps + 1) * config->lap_distance - car->distance;
-        //double fuel_needed = current_consumption*distance_until_box/current_speed; 
+        //double fuel_needed = current_consumption*distance_until_box/current_speed;
         
         if(laps_after > laps) {
             pthread_mutex_lock(&shared_memory->mutex);
@@ -89,8 +89,16 @@ void car_simulator(void * arg) {
                 pthread_mutex_unlock(&shared_memory->mutex);
                 pthread_mutex_lock(&car->team->team_mutex);
                 car->status = FINISHED;
-                write_pipe(fd, "CAR %d FINISHED THE RACE", car->number);
                 pthread_mutex_unlock(&car->team->team_mutex);
+                write_pipe(fd, "CAR %d FINISHED THE RACE", car->number);
+
+                pthread_mutex_lock(&shared_memory->mutex);
+                if(shared_memory->finish_cars == shared_memory->total_cars) {
+                    pthread_mutex_unlock(&shared_memory->mutex);
+                    write_pipe(fd, "RESET");
+                }else
+                    pthread_mutex_unlock(&shared_memory->mutex);
+
                 pthread_exit(NULL);
             }else
                 pthread_mutex_unlock(&shared_memory->mutex);
@@ -171,7 +179,7 @@ void car_simulator(void * arg) {
 void * car_thread(void * p) {
     car_t * car = (car_t *) p;
     write_debug("CAR %d [TEAM %s] CREATED\n", car->number, car->team->name);
-    
+
     wait_for_start(shared_memory, &team->team_mutex);
 
     car_simulator(car);
@@ -188,9 +196,6 @@ void reset_team() {
         car_t * car = get_car(shared_memory, config, team->pos_array, i);
         pthread_create(&car->thread, NULL, car_thread, car);
     }
-
-    team_function();
-    exit(0);
 }
 
 void close_team() {
@@ -215,9 +220,6 @@ void team_manager(shared_memory_t * shared, team_t * t, config_t * conf, int fd_
     config = conf;
     team = t;
     fd = fd_unnamed_pipe;
-    
-    signal(SIGINT, close_team);
-    signal(SIGUSR1, reset_team);
 
     write_debug("TEAM MANAGER %s CREATED [%d]\n", team->name, getpid());
     
@@ -228,6 +230,8 @@ void team_manager(shared_memory_t * shared, team_t * t, config_t * conf, int fd_
 }
 
 void team_function() {
+    signal(SIGINT, close_team);
+    signal(SIGUSR1, reset_team);
     while(1) {
         pthread_mutex_lock(&shared_memory->mutex);
         while (team->num_cars == team->res && shared_memory->race_started == 0) {

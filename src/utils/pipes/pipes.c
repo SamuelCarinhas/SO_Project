@@ -1,8 +1,8 @@
 #include "pipes.h"
 
-void read_from_pipes(int * pipes, int n_pipes, int (* handle_unnamed_pipe)(char * str), int (* handle_named_pipe)(char * str)) {
+int read_from_pipes(int * pipes, int n_pipes, int (* handle_unnamed_pipe)(char * str), int (* handle_named_pipe)(char * str)) {
     char string[MAX_STRING];
-    int n_read;
+    int n_read, res;
     fd_set read_set;
     while(1) {
         FD_ZERO(&read_set);
@@ -15,11 +15,13 @@ void read_from_pipes(int * pipes, int n_pipes, int (* handle_unnamed_pipe)(char 
                     string[n_read] = '\0';
                     remove_endline(string);
                     if(n_read > 0 && i == 0) {
-                        if(handle_named_pipe(string))
-                            return;
+                        res = handle_named_pipe(string);
+                        if(res == END || res == RESET)
+                            return res;
                     } else if(n_read > 0) {
-                        if(handle_unnamed_pipe(string))
-                            return;
+                        res = handle_unnamed_pipe(string);
+                        if(res == END || res == RESET)
+                            return res;
                     }
                 }
             }
