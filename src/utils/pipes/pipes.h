@@ -16,7 +16,7 @@
 #include <string.h>
 #include "../../config/config.h"
 
-#define RESET -1
+#define FINISH -1
 #define END 1
 #define OK 0
 

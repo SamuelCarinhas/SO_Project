@@ -16,11 +16,11 @@ int read_from_pipes(int * pipes, int n_pipes, int (* handle_unnamed_pipe)(char *
                     remove_endline(string);
                     if(n_read > 0 && i == 0) {
                         res = handle_named_pipe(string);
-                        if(res == END || res == RESET)
+                        if(res == END || res == FINISH)
                             return res;
                     } else if(n_read > 0) {
                         res = handle_unnamed_pipe(string);
-                        if(res == END || res == RESET)
+                        if(res == END || res == FINISH)
                             return res;
                     }
                 }

@@ -72,10 +72,18 @@ void malfunction_generator() {
 }
 
 void malfunction_signal_handler(int sig) {
-    if(sig == SIGINT)
+    if(sig == SIGINT) {
+        pthread_mutex_lock(&shared_memory->mutex);
+        int restarting = shared_memory->restarting_race;
+        pthread_mutex_unlock(&shared_memory->mutex);
+        
+        if(restarting)
+            return;
+
+        write_debug("MALFUNCTION: SIGINT RECEIVED\n");
         exit(0);
-    else if(sig == SIGUSR1) {
-        write_debug("MALFUNCTION: SIGUSR RECEIVED\n");
+    } else if(sig == SIGUSR1) {
+        write_debug("MALFUNCTION: SIGUSR1 RECEIVED\n");
         wait_for_start(shared_memory, &shared_memory->mutex);
     }
 }

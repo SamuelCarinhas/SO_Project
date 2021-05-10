@@ -54,6 +54,9 @@ void init_team(team_t * team) {
 
 void init_memory(shared_memory_t * shared_memory) {
     shared_memory->finish_cars = 0;
+    shared_memory->race_started = 0;
+    shared_memory->end_race = 0;
+    shared_memory->restarting_race = 0;
 }
 
 void wait_for_start(shared_memory_t * shared_memory, pthread_mutex_t * mutex) {

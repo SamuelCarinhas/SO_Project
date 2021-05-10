@@ -8,11 +8,13 @@
 
 #include "team_manager.h"
 
-void team_function();
 int fd;
 shared_memory_t * shared_memory;
 config_t * config;
 team_t * team;
+
+void team_function();
+void end_team();
 
 int box(car_t * car) {
     pthread_mutex_lock(&car->team->team_mutex);
@@ -81,21 +83,23 @@ void car_simulator(void * arg) {
         //double distance_until_box = (laps + 1) * config->lap_distance - car->distance;
         //double fuel_needed = current_consumption*distance_until_box/current_speed;
         
+        car->distance += current_speed;
+        car->fuel -= current_consumption;
+
         if(laps_after > laps) {
             pthread_mutex_lock(&shared_memory->mutex);
 
-            if(shared_memory->race_started == 0){
+            if(shared_memory->end_race == 1){
                 shared_memory->finish_cars++;
                 pthread_mutex_unlock(&shared_memory->mutex);
                 pthread_mutex_lock(&car->team->team_mutex);
                 car->status = FINISHED;
                 pthread_mutex_unlock(&car->team->team_mutex);
                 write_pipe(fd, "CAR %d FINISHED THE RACE", car->number);
-
                 pthread_mutex_lock(&shared_memory->mutex);
                 if(shared_memory->finish_cars == shared_memory->total_cars) {
                     pthread_mutex_unlock(&shared_memory->mutex);
-                    write_pipe(fd, "RESET");
+                    write_pipe(fd, "FINISH");
                 }else
                     pthread_mutex_unlock(&shared_memory->mutex);
 
@@ -116,13 +120,23 @@ void car_simulator(void * arg) {
             }*/
             write_debug("CAR %d COMPLETED LAP Nº%d\n", car->number, laps_after);
             if(box(car)) {
-                car->distance += current_speed;
+                pthread_mutex_lock(&shared_memory->mutex);
+                if(shared_memory->end_race == 1) {
+                    shared_memory->finish_cars++;
+                    int last = shared_memory->finish_cars == shared_memory->total_cars;
+                    pthread_mutex_unlock(&shared_memory->mutex);
+                    write_pipe(fd, "CAR %d FINISHED THE RACE", car->number);
+                    if(last)
+                        write_pipe(fd, "FINISH");
+
+                    pthread_exit(NULL);
+                }
+                
+                pthread_mutex_unlock(&shared_memory->mutex);
+
                 continue;
             }
         }
-        
-        car->distance += current_speed;
-        car->fuel -= current_consumption;
 
         if(car->fuel <= 0) {
             pthread_mutex_lock(&shared_memory->mutex);
@@ -188,7 +202,8 @@ void * car_thread(void * p) {
 }
 
 void reset_team() {
-    write_debug("TEAM_MANAGER: RECEIVED USR1\n");
+    write_debug("TEAM_MANAGER: RECEIVED SIGUSR1\n");
+
     for(int i = 0; i < team->num_cars; i++)
         pthread_join(get_car(shared_memory, config, team->pos_array, i)->thread, NULL);
 
@@ -198,7 +213,23 @@ void reset_team() {
     }
 }
 
-void close_team() {
+void end_team() {
+    pthread_mutex_lock(&shared_memory->mutex);
+    int restarting = shared_memory->restarting_race;
+    pthread_mutex_unlock(&shared_memory->mutex);
+    
+    if(restarting)
+        return;
+        
+    signal(SIGINT, SIG_IGN);
+    write_debug("TEAM_MANAGER [%s]: RECEIVED SIGINT\n", team->name);
+
+    if(shared_memory->race_started == 0)
+        exit(0);
+
+    for(int i = 0; i < team->num_cars; i++)
+        pthread_join(get_car(shared_memory, config, team->pos_array, i)->thread, NULL);
+
     exit(0);
 }
 
@@ -226,11 +257,10 @@ void team_manager(shared_memory_t * shared, team_t * t, config_t * conf, int fd_
     team_function();
 
     close(fd);
-    close_team();
 }
 
 void team_function() {
-    signal(SIGINT, close_team);
+    signal(SIGINT, end_team);
     signal(SIGUSR1, reset_team);
     while(1) {
         pthread_mutex_lock(&shared_memory->mutex);
