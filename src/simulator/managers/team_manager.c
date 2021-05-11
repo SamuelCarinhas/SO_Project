@@ -125,7 +125,11 @@ void car_simulator(void * arg) {
                     shared_memory->finish_cars++;
                     int last = shared_memory->finish_cars == shared_memory->total_cars;
                     pthread_mutex_unlock(&shared_memory->mutex);
+                    pthread_mutex_lock(&car->team->team_mutex);
+                    car->status = FINISHED;
+                    pthread_mutex_unlock(&car->team->team_mutex);
                     write_pipe(fd, "CAR %d FINISHED THE RACE", car->number);
+
                     if(last)
                         write_pipe(fd, "FINISH");
 
@@ -139,13 +143,18 @@ void car_simulator(void * arg) {
         }
 
         if(car->fuel <= 0) {
-            pthread_mutex_lock(&shared_memory->mutex);
-            shared_memory->finish_cars++;
-            pthread_mutex_unlock(&shared_memory->mutex);
             pthread_mutex_lock(&car->team->team_mutex);
+            car->fuel = 0;
             car->status = GAVE_UP;
             pthread_mutex_unlock(&car->team->team_mutex);
             write_pipe(fd, "CAR %d GAVE UP\n", car->number);
+
+            pthread_mutex_lock(&shared_memory->mutex);
+            shared_memory->finish_cars++;
+            int last = shared_memory->finish_cars == shared_memory->total_cars;
+            pthread_mutex_unlock(&shared_memory->mutex);
+            if(last)
+                write_pipe(fd, "FINISH");
             pthread_exit(NULL);
         }
 

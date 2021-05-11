@@ -36,14 +36,22 @@ enum car_status {
     RACE, SAFE_MODE, BOX, GAVE_UP, FINISHED
 };
 
+static char * car_string[] = {
+    "RACE",
+    "SAFE_MODE",
+    "BOX",
+    "GAVE_UP",
+    "FINISHED"
+};
+
 struct shared_memory {
-    int num_teams;
+    int end_race;
     int race_started;
     int restarting_race;
+    int num_teams;
     int message_queue;
     int total_cars;
     int finish_cars;
-    int end_race;
     pthread_mutex_t mutex, mutex_reset;
     pthread_cond_t new_command, reset_race;
 };

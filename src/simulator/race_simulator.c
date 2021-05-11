@@ -14,6 +14,11 @@ key_t shmkey;
 int shmid;
 pid_t race_manager_pid, malfunction_manager_pid;
 
+void signal_tstp();
+void signal_sigint();
+void clean();
+void init();
+
 /*
 * NAME :                            void init()
 *
@@ -26,7 +31,6 @@ pid_t race_manager_pid, malfunction_manager_pid;
 *          void
 *
 */
-
 void init() {
     init_mutex_log();
     unlink(PIPE_NAME);
@@ -108,15 +112,18 @@ void signal_sigint() {
 }
 
 void signal_tstp() {
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
     pthread_mutex_lock(&shared_memory->mutex);
-    if(shared_memory->restarting_race){
+    if(shared_memory->race_started) {
         pthread_mutex_unlock(&shared_memory->mutex);
         show_statistics(shared_memory, config);
-    } else{
+    } else {
         pthread_mutex_unlock(&shared_memory->mutex);
         write_log("RACE NOT STARTED\n");
     }
-        
+    signal(SIGINT, signal_sigint);
+    signal(SIGTSTP, signal_tstp);
 }
 
 /*
@@ -163,6 +170,7 @@ int main() {
     waitpid(malfunction_manager_pid, NULL, 0);
     write_debug("MALFUNCTION MANAGER IS LEAVING [%d]\n", malfunction_manager_pid);
     
+
     clean();
 
     return 0;

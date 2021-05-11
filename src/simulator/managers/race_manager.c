@@ -20,6 +20,7 @@ int receive_car_messages(char * string);
 
 void race();
 void clean_race();
+void end_race();
 
 /*
 * NAME :                            void create_team(char * team_name, shared_memory_t * shared_memory, int pos)
@@ -171,10 +172,29 @@ void reset_race() {
     }
 
     write_log("RACE WAS RESTARTED\n");
-    signal(SIGINT, clean_race);
+    signal(SIGINT, end_race);
 }
 
 void clean_race() {
+    close(fd);
+    team_t * teams = get_teams(shared_memory);
+    for(int i = 0; i< shared_memory->num_teams; i++){
+        pthread_mutex_destroy(&teams[i].team_mutex);
+        close(pipes[i][0]);
+        close(pipes[i][1]);
+    }
+
+    for(int i = 0; i < config->teams; i++) {
+        free(pipes[i]);
+    }
+
+    free(pipes);
+    free(teams_pids);
+
+    exit(0);
+}
+
+void end_race() {
     write_log("RACE MANAGER: SIGINT\n");
     signal(SIGINT, SIG_IGN);
     signal(SIGUSR1, SIG_IGN);
@@ -205,20 +225,7 @@ void clean_race() {
     }
 
     
-    close(fd);
-    team_t * teams = get_teams(shared_memory);
-    for(int i = 0; i< shared_memory->num_teams; i++){
-        pthread_mutex_destroy(&teams[i].team_mutex);
-        close(pipes[i][0]);
-        close(pipes[i][1]);
-    }
-
-    for(int i = 0; i < config->teams; i++) {
-        free(pipes[i]);
-    }
-
-    free(pipes);
-    free(teams_pids);
+    clean_race();
 
     exit(0);
 }
@@ -267,7 +274,7 @@ int receive_car_messages(char * string) {
 }
 
 void race() {
-    signal(SIGINT, clean_race);
+    signal(SIGINT, end_race);
     signal(SIGUSR1, reset_race);
 
     while(1) {
@@ -319,5 +326,6 @@ void race_manager(shared_memory_t * shared, config_t * conf, pid_t malfunction) 
     //read comments from named pipe
     race();
 
+    show_statistics(shared_memory, config);
     clean_race();
 }
