@@ -27,6 +27,7 @@
 typedef struct shared_memory shared_memory_t;
 typedef struct team team_t;
 typedef struct car car_t;
+typedef struct box box_t;
 
 enum box_status {
     OPEN, RESERVED, OCCUPIED
@@ -44,6 +45,13 @@ static char * car_string[] = {
     "FINISHED"
 };
 
+struct box {
+    pthread_mutex_t mutex, join_mutex, leave_mutex;
+    pthread_cond_t car_join, car_leave;
+    // AKA carro_que_quer_entrar_nao_tenho_nome_para_esta_variavel_xD
+    car_t * car;
+    enum box_status status;
+};
 struct shared_memory {
     int end_race;
     int race_started;
@@ -63,7 +71,7 @@ struct team {
     int pos_array;
     int safe_cars;
     pthread_mutex_t team_mutex;
-    enum box_status box;
+    
 };
 
 struct car {

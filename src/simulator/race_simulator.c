@@ -104,7 +104,8 @@ void signal_sigint() {
 
     while(wait(NULL) != -1);
 
-    show_statistics(shared_memory, config);
+    if(shared_memory->race_started)
+        show_statistics(shared_memory, config);
     clean();
 
 
