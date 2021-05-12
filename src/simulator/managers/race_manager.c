@@ -178,7 +178,7 @@ void reset_race() {
 void clean_race() {
     close(fd);
     team_t * teams = get_teams(shared_memory);
-    for(int i = 0; i< shared_memory->num_teams; i++){
+    for(int i = 0; i< shared_memory->num_teams; i++) {
         pthread_mutex_destroy(&teams[i].team_mutex);
         close(pipes[i][0]);
         close(pipes[i][1]);

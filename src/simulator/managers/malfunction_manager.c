@@ -47,7 +47,7 @@ void malfunction_generator() {
     message.malfunction = 1;
 
     while(1) {
-        usleep(1.0/config->time_units_per_second * config->malfunction_time_units * 1000000);
+        sync_sleep(shared_memory, config->malfunction_time_units);
         if(shared_memory->total_cars == shared_memory->finish_cars) {
             exit(0);
         }

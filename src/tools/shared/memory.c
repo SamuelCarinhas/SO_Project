@@ -8,6 +8,14 @@
 
 #include "memory.h"
 
+char * car_string[] = {
+    "RACE",
+    "SAFE_MODE",
+    "BOX",
+    "GAVE_UP",
+    "FINISHED"
+};
+
 void show_statistics(shared_memory_t * shared_memory, config_t * config) {
     write_log("\n");
     pthread_mutex_lock(&shared_memory->mutex);
@@ -25,7 +33,6 @@ void show_statistics(shared_memory_t * shared_memory, config_t * config) {
         car_ranking[i].distance = -1;
 
     car_t * car;
-    // Não mexer =D
     int total_malfunctions = 0, total_refuels = 0;
     for(int i = 0; i < num_teams; i++) {
         for(int j = 0; j < teams[i].num_cars; j++) {
@@ -51,7 +58,7 @@ void show_statistics(shared_memory_t * shared_memory, config_t * config) {
     snprintf(buffer2, MAX_STRING*2000, "| RANK | CAR | TEAM | LAPS | STOPS | FUEL |   STATUS   |\n");
     strcat(buffer, buffer2);
     
-    for(int i = 0; i < max_statistics; i++){
+    for(int i = 0; i < max_statistics; i++) {
         snprintf(buffer2, MAX_STRING*100, "| %4d | %3d | %4s | %4d | %5d | %4.1f | %10s | \n", (i+1), car_ranking[i].number, car_ranking[i].team->name, (int)(car_ranking[i].distance/config->lap_distance), car_ranking[i].total_boxstops, car_ranking[i].fuel, car_string[car_ranking[i].status]);
         strcat(buffer, buffer2);
     }

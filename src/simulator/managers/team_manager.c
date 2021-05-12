@@ -28,9 +28,7 @@ void car_simulator(void * arg) {
     double current_speed, current_consumption;
 
     while(1) {
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!! FAZER ISTO SINCRONIZADO COM AS ESTATISTICAS !!!!!!!!!!!!!!!!!!!!!!!!!!
-        // TODO: DE FORMA EFICIENTE =D
-        usleep(1000000.0/config->time_units_per_second);
+        sync_sleep(shared_memory, 1);
         if(msgrcv(shared_memory->message_queue, &message, sizeof(message_t) - sizeof(long), car->number, IPC_NOWAIT) >= 0) {
             pthread_mutex_lock(&car->team->team_mutex);
             car->status = SAFE_MODE;
@@ -57,7 +55,7 @@ void car_simulator(void * arg) {
         if(laps_after > laps) {
             pthread_mutex_lock(&shared_memory->mutex);
 
-            if(shared_memory->end_race == 1){
+            if(shared_memory->end_race == 1) {
                 shared_memory->finish_cars++;
                 pthread_mutex_unlock(&shared_memory->mutex);
                 pthread_mutex_lock(&car->team->team_mutex);
@@ -155,8 +153,6 @@ void car_simulator(void * arg) {
     }
 }
 
-
-// ITS WORKING =D
 
 /*
 * NAME :                            void * car_thread(void * p)
@@ -294,7 +290,7 @@ int join_box(car_t * car) {
 void box_handler() {
     while(1) {
         pthread_mutex_lock(&shared_memory->mutex);
-        if(!shared_memory->race_started) // aqui
+        if(!shared_memory->race_started)
             break;
         pthread_mutex_unlock(&shared_memory->mutex);
 
@@ -310,7 +306,7 @@ void box_handler() {
 
         write_pipe(fd, "CAR %d ENTER THE BOX [TEAM: %s]", box.car->number, box.car->team->name);
         
-        usleep((rand() % (config->max_repair_time - config->min_repair_time + 1) + config->min_repair_time ) * 1000000.0/config->time_units_per_second);
+        sync_sleep(shared_memory, rand() % (config->max_repair_time - config->min_repair_time + 1) + config->min_repair_time );
         
         pthread_mutex_lock(&team->team_mutex);
         box.car->fuel = config->fuel_capacity;
@@ -331,10 +327,6 @@ void box_handler() {
 }
 
 void team_function() {
-    // Nao, btw eu tinha te mandado uma msg para o messenger, ignora xD. O meu pc estava todo bugado no navegador e não conseguia
-    // voltar para o vscode xD ah sorry, não vi. Na boa xD, pensei que o pc tinha bugado todo xD fogo, isso era muito mau
-    //mas já reparaste que deste commit com estes nossos "chats" ????  ahahahahhah Yes =) xD, sry ahahahah, mas era melhor antes
-    // que o pc vai abaixo ou assim, .sim sim fizeste bem XD
     init_mutex_proc(&box.mutex);
     init_mutex_proc(&box.join_mutex);
     init_mutex_proc(&box.leave_mutex);

@@ -5,9 +5,8 @@
         Joana Maria Silva Simoes 2019217013
         Samuel dos Santos Carinhas 2019217199
 */
-
-#ifndef MALFUNCTION_MANAGER_HEADER
-#define MALFUNCTION_MANAGER_HEADER
+#ifndef CLOCK_HEADER
+#define CLOCK_HEADER
 
 #include <stdio.h>
 #include <sys/ipc.h>
@@ -22,15 +21,9 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <string.h>
-#include "../race_simulator.h"
-#include "../../utils/mutexes/mutex.h"
-#include "../../utils/log/log.h"
 #include "../../tools/shared/memory.h"
-#include "../../config/config.h"
-#include "../../utils/pipes/pipes.h"
-#include "../../utils/string/string.h"
-#include "../../utils/clock/clock.h"
 
-extern void malfunction_manager(shared_memory_t *, config_t *);
+extern void sync_clock(shared_memory_t * shared, config_t * config);
+extern void sync_sleep(shared_memory_t * shared, int units);
 
 #endif

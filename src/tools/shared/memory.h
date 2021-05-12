@@ -28,6 +28,9 @@ typedef struct shared_memory shared_memory_t;
 typedef struct team team_t;
 typedef struct car car_t;
 typedef struct box box_t;
+typedef struct clock sync_clock_t;
+
+extern char * car_string[];
 
 enum box_status {
     OPEN, RESERVED, OCCUPIED
@@ -37,18 +40,15 @@ enum car_status {
     RACE, SAFE_MODE, BOX, GAVE_UP, FINISHED
 };
 
-static char * car_string[] = {
-    "RACE",
-    "SAFE_MODE",
-    "BOX",
-    "GAVE_UP",
-    "FINISHED"
+struct clock {
+    int received;
+    pthread_mutex_t mutex_sync, mutex_wait;
+    pthread_cond_t time_sync, cond_wait;
 };
 
 struct box {
     pthread_mutex_t mutex, join_mutex, leave_mutex;
     pthread_cond_t car_join, car_leave;
-    // AKA carro_que_quer_entrar_nao_tenho_nome_para_esta_variavel_xD
     car_t * car;
     enum box_status status;
 };
@@ -63,6 +63,7 @@ struct shared_memory {
     int finish_cars;
     pthread_mutex_t mutex, mutex_reset;
     pthread_cond_t new_command, reset_race;
+    sync_clock_t clock;
 };
 
 struct team {
@@ -91,6 +92,6 @@ extern car_t * get_car(shared_memory_t * shared_memory, config_t * config, int p
 extern void init_car(car_t * car, config_t * config);
 extern void init_team(team_t * team);
 extern void init_memory(shared_memory_t * shared_memory);
-extern void show_statistics(shared_memory_t * shared_memory, config_t * config_t);
+extern void show_statistics(shared_memory_t * shared_memory, config_t * config);
 
 #endif

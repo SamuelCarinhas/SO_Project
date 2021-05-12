@@ -17,5 +17,6 @@
 
 extern void init_mutex_proc(pthread_mutex_t * mutex);
 extern void init_cond_proc(pthread_cond_t * cond);
-
+extern void destroy_mutex_proc(pthread_mutex_t * mutex);
+extern void destroy_cond_proc(pthread_cond_t * cond)
 #endif
