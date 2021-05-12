@@ -52,6 +52,7 @@ struct box {
     car_t * car;
     enum box_status status;
 };
+
 struct shared_memory {
     int end_race;
     int race_started;

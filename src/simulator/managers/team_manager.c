@@ -145,8 +145,8 @@ void car_simulator(void * arg) {
             if(max_laps <= 2 && car->status == RACE) {
                 pthread_mutex_lock(&car->team->team_mutex);
                 car->status = SAFE_MODE;
-                if(car->team->box == OPEN)
-                    car->team->box = RESERVED;
+                if(box.status == OPEN) 
+                    box.status = RESERVED;
                 car->team->safe_cars++;
                 pthread_mutex_unlock(&car->team->team_mutex);
                 write_pipe(fd, "CAR %d IS IN SAFE_MODE DUE TO LOW FUEL", car->number);
@@ -154,6 +154,9 @@ void car_simulator(void * arg) {
         }   
     }
 }
+
+
+// ITS WORKING =D
 
 /*
 * NAME :                            void * car_thread(void * p)
@@ -302,7 +305,7 @@ void box_handler() {
         pthread_mutex_lock(&team->team_mutex);
         box.status = OCCUPIED;
         enum car_status join_state = box.car->status;
-        box.car->stauts = BOX;
+        box.car->status = BOX;
         pthread_mutex_unlock(&team->team_mutex);
 
         write_pipe(fd, "CAR %d ENTER THE BOX [TEAM: %s]", box.car->number, box.car->team->name);
@@ -329,12 +332,14 @@ void box_handler() {
 
 void team_function() {
     // Nao, btw eu tinha te mandado uma msg para o messenger, ignora xD. O meu pc estava todo bugado no navegador e não conseguia
-    // voltar para o vscode xD
-    box.mutex = PTHREAD_MUTEX_INITIALIZER;
-    box.join_mutex = PTHREAD_MUTEX_INITIALIZER;
-    box.leave_mutex = PTHREAD_MUTEX_INITIALIZER;
-    box.car_join = PTHREAD_COND_INITIALIZER;
-    box.car_leave = PTHREAD_COND_INITIALIZER; 
+    // voltar para o vscode xD ah sorry, não vi. Na boa xD, pensei que o pc tinha bugado todo xD fogo, isso era muito mau
+    //mas já reparaste que deste commit com estes nossos "chats" ????  ahahahahhah Yes =) xD, sry ahahahah, mas era melhor antes
+    // que o pc vai abaixo ou assim, .sim sim fizeste bem XD
+    init_mutex_proc(&box.mutex);
+    init_mutex_proc(&box.join_mutex);
+    init_mutex_proc(&box.leave_mutex);
+    init_cond_proc(&box.car_join);
+    init_cond_proc(&box.car_leave);
 
     signal(SIGINT, end_team);
     signal(SIGUSR1, reset_team);
