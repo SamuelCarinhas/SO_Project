@@ -29,7 +29,6 @@
 #include "../../config/config.h"
 #include "../../utils/pipes/pipes.h"
 #include "../../utils/string/string.h"
-#include "../../utils/clock/clock.h"
 
 extern void malfunction_manager(shared_memory_t *, config_t *);
 

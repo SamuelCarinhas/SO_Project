@@ -22,7 +22,7 @@ void init();
 /*
 * NAME :                            void init()
 *
-* DESCRIPTION :                     Allocates space for teams and cars. Also initializes mutex semaphores and condition variable
+* DESCRIPTION :                     Allocates space for teams and cars. Also inicializes mutex semaphores and condition variable
 *
 * PARAMETERS :
 *          void
@@ -54,15 +54,13 @@ void init() {
 
     init_mutex_proc(&shared_memory->mutex);
     init_mutex_proc(&shared_memory->mutex_reset);
+    init_mutex_proc(&shared_memory->end_race_mutex);
     init_cond_proc(&shared_memory->new_command);
     init_cond_proc(&shared_memory->reset_race);
-    init_mutex_proc(&shared_memory->clock.mutex_sync);
-    init_mutex_proc(&shared_memory->clock.mutex_wait);
-    init_cond_proc(&shared_memory->clock.time_sync);
-    init_cond_proc(&shared_memory->clock.cond_wait);
+    init_cond_proc(&shared_memory->end_race_cond);
 
     shared_memory->message_queue = msgget(IPC_PRIVATE, IPC_CREAT|0777);
-    if(shared_memory->message_queue <0) {
+    if(shared_memory->message_queue <0){
         perror("Creating message queue");
         exit(0);
     }
@@ -86,17 +84,10 @@ void init() {
 *
 */
 void clean() {
+    // TODO: !!!!!!!!!!!!!!!!!! DESTRUIR MUTEXES E COND VARIABLES !!!!!!!!!!!!!!!!
     write_log("SIMULATOR CLOSING [%d]\n", getpid());
     destroy_mutex_log();
     unlink(PIPE_NAME);
-    destroy_mutex_proc(&shared_memory->mutex);
-    destroy_mutex_proc(&shared_memory->mutex_reset);
-    destroy_cond_proc(&shared_memory->new_command);
-    destroy_cond_proc(&shared_memory->reset_race);
-    destroy_mutex_proc(&shared_memory->clock.mutex_sync);
-    destroy_mutex_proc(&shared_memory->clock.mutex_wait);
-    destroy_cond_proc(&shared_memory->clock.time_sync);
-    destroy_cond_proc(&shared_memory->clock.cond_wait);
     msgctl(shared_memory->message_queue, IPC_RMID, 0);
     shmdt(shared_memory);
     shmctl(shmid, IPC_RMID, NULL);
@@ -116,8 +107,7 @@ void signal_sigint() {
 
     while(wait(NULL) != -1);
 
-    if(shared_memory->race_started)
-        show_statistics(shared_memory, config);
+    show_statistics(shared_memory, config);
     clean();
 
 
@@ -152,6 +142,7 @@ void signal_tstp() {
 *
 */
 int main() {
+
     signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
     signal(SIGUSR1, SIG_IGN);
@@ -170,11 +161,6 @@ int main() {
     race_manager_pid = fork();
     if(race_manager_pid == 0) {
         race_manager(shared_memory, config, malfunction_manager_pid);
-        exit(0);
-    }
-
-    if(fork() == 0) {
-        sync_clock(shared_memory, config);
         exit(0);
     }
 

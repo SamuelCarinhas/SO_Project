@@ -13,11 +13,3 @@ void init_cond_proc(pthread_cond_t * cond) {
     pthread_condattr_setpshared(&attrcondv, PTHREAD_PROCESS_SHARED);
     pthread_cond_init(cond, &attrcondv);
 }
-
-void destroy_mutex_proc(pthread_mutex_t * mutex) {
-    pthread_mutex_destroy(mutex);
-}
-
-void destroy_cond_proc(pthread_cond_t * cond) {
-    pthread_cond_destroy(cond);
-}

@@ -24,13 +24,11 @@
 #include <string.h>
 #include "../../config/config.h"
 
-typedef struct shared_memory shared_memory_t;
-typedef struct team team_t;
-typedef struct car car_t;
-typedef struct box box_t;
-typedef struct clock sync_clock_t;
+#define LAST_RANK 1000000
 
-extern char * car_string[];
+typedef struct car car_t;
+typedef struct team team_t;
+typedef struct shared_memory shared_memory_t;
 
 enum box_status {
     OPEN, RESERVED, OCCUPIED
@@ -40,46 +38,42 @@ enum car_status {
     RACE, SAFE_MODE, BOX, GAVE_UP, FINISHED
 };
 
-struct clock {
-    int received;
-    pthread_mutex_t mutex_sync, mutex_wait;
-    pthread_cond_t time_sync, cond_wait;
-};
-
-struct box {
-    pthread_mutex_t mutex, join_mutex, leave_mutex;
-    pthread_cond_t car_join, car_leave;
-    car_t * car;
-    enum box_status status;
-};
+extern char * car_string[];
 
 struct shared_memory {
+    int ranking;
     int end_race;
-    int race_started;
-    int restarting_race;
     int num_teams;
-    int message_queue;
     int total_cars;
     int finish_cars;
-    pthread_mutex_t mutex, mutex_reset;
-    pthread_cond_t new_command, reset_race;
-    sync_clock_t clock;
+    int race_started;
+    int message_queue;
+    int restarting_race;
+    pthread_mutex_t mutex, mutex_reset, end_race_mutex;
+    pthread_cond_t new_command, reset_race, end_race_cond;
 };
 
 struct team {
-    char name[MAX_STRING];
-    int num_cars;
     int res;
+    int num_cars;
     int pos_array;
     int safe_cars;
+    char name[MAX_STRING];
     pthread_mutex_t team_mutex;
-    
+    enum box_status box;
 };
 
 struct car {
-    int number, speed, reliability,
-        total_malfunctions, total_refuels, total_boxstops;
-    double consumption, fuel, distance, current_speed;
+    int rank;
+    int speed;
+    int number;
+    int reliability;
+    int total_refuels;
+    int total_boxstops;
+    int total_malfunctions;
+    double fuel;
+    double distance;
+    double consumption;
     team_t * team;
     pthread_t thread;
     enum car_status status;
@@ -92,6 +86,6 @@ extern car_t * get_car(shared_memory_t * shared_memory, config_t * config, int p
 extern void init_car(car_t * car, config_t * config);
 extern void init_team(team_t * team);
 extern void init_memory(shared_memory_t * shared_memory);
-extern void show_statistics(shared_memory_t * shared_memory, config_t * config);
+extern void show_statistics(shared_memory_t * shared_memory, config_t * config_t);
 
 #endif

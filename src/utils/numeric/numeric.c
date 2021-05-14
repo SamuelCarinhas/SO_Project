@@ -25,7 +25,7 @@ int is_number(char * string) {
     if(string == NULL)
         return 0;
     string = trim(string);
-    for(char * p = string; *p != '\0'; p++) {
+    for(char * p = string; *p != '\0'; p++){
         if(!isdigit(*p))
             return 0;
     }

@@ -96,44 +96,80 @@ int get_team_position(char * team_name) {
 * TODO :                            Check the limit of cars per team and make sure the command is valid
 *
 */
-void load_car(char * string) {
-    char delim[2] = ",";
-    char delim_b[2] = ":";
-    char * token, * token_b;
-    char * rest = string, * rest_b;
-    char data[5][MAX_STRING];
-    for(int i = 0; i < 5; i++) {
-        token = strtok_r(rest, delim, &rest);
-        rest_b = token;
-        token_b = strtok_r(rest_b, delim_b, &rest_b);
-        token_b = strtok_r(rest_b, delim_b, &rest_b);
-        strcpy(data[i], trim(token_b));
+int load_car(char * string) {
+    char team_name[MAX_STRING];
+    int car_number, speed, reliability;
+    double consumption;
+    
+    const char * format = "ADDCAR TEAM: %s, CAR: %d, SPEED: %d, CONSUMPTION: %lf, RELIABILITY: %d";
+
+    write_log("\nString: %s\nFormat: %s\n", string, format);
+
+    int res = sscanf(string, format, team_name, &car_number, &speed, &consumption, &reliability);
+    write_log("%d\n", res);
+
+    if(res != 5)
+        return 0;
+
+    if(strlen(team_name) < 3 || strlen(team_name) > 16) {
+        write_log("TEAM NAME MUST BE BETWEEN 3 AND 10\n");
+        return -1;
+    }
+    
+    team_t * teams = get_teams(shared_memory);
+    int car_exists = 0;
+    for(int i = 0; i < shared_memory->num_teams && !car_exists; i++) {
+        for(int j = 0; j< teams[i].num_cars ; j++)
+            if (car_number == get_car(shared_memory, config, i, j)->number) {
+                car_exists = 1;
+                break;
+            }
     }
 
-    int pos_team = get_team_position(data[0]);
+    if(car_exists){
+        write_log("DUPLICATE CAR NUMBER\n");
+        return -1;
+    }
 
-    team_t * team = get_teams(shared_memory) + pos_team;
+    if(speed <= 0) {
+        write_log("INVALID SPEED VALUE\n");
+        return -1;
+    }
+
+    if(reliability > 100 || reliability <= 0) {
+        write_log("INVALID RELIABILITY VALUE\n");
+        return -1;
+    }
+
+    if(consumption <= 0) {
+        write_log("INVALID CONSUMPTION VALUE\n");
+        return -1;
+    }
+
+    int pos_team = get_team_position(team_name);
+
+    team_t * team = &teams[pos_team];
 
     if(team->num_cars == config->max_cars_per_team) {
         write_log("TEAM %s CAN'T HAVE MORE CARS [MAX OF %d CARS]\n", team->name, config->max_cars_per_team);
-        return;
+        return -1;
     }
 
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FAZER AS VALIDAÇÕES !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    
     int pos_car = team->num_cars;
     car_t * car = get_car(shared_memory, config, pos_team, pos_car);
     car->team = team;
-    car->number = atoi(data[1]);
-    car->speed = atoi(data[2]);
-    car->current_speed = car->speed;
-    car->consumption = atof(data[3]);
-    car->reliability = atoi(data[4]);
+    car->number =car_number;
+    
+    car->speed = speed;
+    car->consumption = consumption;
+    car->reliability = reliability;
 
     init_car(car, config);
 
     shared_memory->total_cars++;
     team->num_cars++;
+
+    return 1;
 }
 
 void reset_race() {
@@ -157,6 +193,7 @@ void reset_race() {
     pipe_arr[0] = fd;
     for(int i = 1; i <= shared_memory->num_teams; i++)
         pipe_arr[i] = pipes[i-1][0];
+    //fica a espera que todos os carros terminem
     read_from_pipes(pipe_arr, shared_memory->num_teams + 1, receive_car_messages, command_handler);
 
     show_statistics(shared_memory, config);
@@ -178,7 +215,7 @@ void reset_race() {
 void clean_race() {
     close(fd);
     team_t * teams = get_teams(shared_memory);
-    for(int i = 0; i< shared_memory->num_teams; i++) {
+    for(int i = 0; i< shared_memory->num_teams; i++){
         pthread_mutex_destroy(&teams[i].team_mutex);
         close(pipes[i][0]);
         close(pipes[i][1]);
@@ -224,7 +261,6 @@ void end_race() {
         }
     }
 
-    
     clean_race();
 
     exit(0);
@@ -235,8 +271,11 @@ int command_handler(char * string) {
     if(shared_memory->race_started == 0) {
         pthread_mutex_unlock(&shared_memory->mutex);
         if(starts_with(string, "ADDCAR")) {
-            load_car(string);
-            pthread_cond_broadcast(&shared_memory->new_command);
+            int res = load_car(string);
+            if(res == 1)
+                pthread_cond_broadcast(&shared_memory->new_command);
+            else if(res == 0)
+                write_log("WRONG COMMAND => %s\n", string);
         } else if (starts_with(string, "START RACE!")) {
             write_log("NEW COMMAND RECEIVED: START RACE\n");
             pthread_mutex_lock(&shared_memory->mutex);
@@ -249,7 +288,8 @@ int command_handler(char * string) {
             pthread_mutex_unlock(&shared_memory->mutex);
             pthread_cond_broadcast(&shared_memory->new_command);
             return END;
-        }
+        } else
+            write_log("WRONG COMMAND => %s\n", string);
     } else {
         pthread_mutex_unlock(&shared_memory->mutex);
         write_log("\"%s\" : REJECTED, RACE ALREADY STARTED!\n", string);
@@ -258,12 +298,13 @@ int command_handler(char * string) {
 }
 
 int receive_car_messages(char * string) {
-    write_log("%s\n", string);
+    write_log("RECEIVED CAR MESSAGE: \"%s\"\n", string);
     if(ends_with(string, "FINISHED THE RACE") || ends_with(string, "GAVE UP")) {
         pthread_mutex_lock(&shared_memory->mutex);
         if(shared_memory->finish_cars == shared_memory->total_cars) {
             pthread_mutex_unlock(&shared_memory->mutex);
             write_log("RACE FINISHED\n");
+            pthread_cond_broadcast(&shared_memory->end_race_cond);
             return END;
         }
         pthread_mutex_unlock(&shared_memory->mutex);
