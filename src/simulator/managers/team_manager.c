@@ -12,7 +12,6 @@ int fd;
 shared_memory_t * shared_memory;
 config_t * config;
 team_t * team;
-box_t box;
 pthread_t box_thread;
 
 void team_function();
@@ -54,7 +53,6 @@ void car_simulator(void * arg) {
         if(car->fuel <= 0) {
             pthread_mutex_lock(&shared_memory->mutex);
             shared_memory->finish_cars++;
-            int last = shared_memory->finish_cars == shared_memory->total_cars;
             pthread_mutex_unlock(&shared_memory->mutex);
 
             pthread_mutex_lock(&team->team_mutex);
@@ -63,12 +61,10 @@ void car_simulator(void * arg) {
             car->status = GAVE_UP;
             pthread_mutex_unlock(&team->team_mutex);
 
+            write_pipe(fd, "CAR %d GAVE UP\n", car->number);
+            
             update_box();
 
-            write_pipe(fd, "CAR %d GAVE UP\n", car->number);
-
-            if(last) //para sinalizar o ultimo carro a terminar a corrida
-                write_pipe(fd, "FINISH");
             pthread_exit(NULL);
         }
 
@@ -84,9 +80,9 @@ void car_simulator(void * arg) {
             car->rank = rank;
             pthread_mutex_unlock(&team->team_mutex);
 
-            update_box();
-
             write_pipe(fd, "CAR %d FINISHED THE RACE", car->number);
+            
+            update_box();
             
             pthread_exit(NULL);
         } else {
@@ -108,6 +104,7 @@ void car_simulator(void * arg) {
             if(shared_memory->end_race == 1){
                 shared_memory->finish_cars++;
                 int rank = ++shared_memory->ranking;
+                int last = shared_memory->finish_cars == shared_memory->total_cars;
                 pthread_mutex_unlock(&shared_memory->mutex);
                 pthread_mutex_lock(&team->team_mutex);
                 car->distance = laps_after * config->lap_distance;
@@ -115,15 +112,13 @@ void car_simulator(void * arg) {
                 car->rank = rank;
                 pthread_mutex_unlock(&team->team_mutex);
 
-                update_box();
-
                 write_pipe(fd, "CAR %d FINISHED THE RACE", car->number);
-                pthread_mutex_lock(&shared_memory->mutex);
-                if(shared_memory->finish_cars == shared_memory->total_cars) {
-                    pthread_mutex_unlock(&shared_memory->mutex);
+
+                if(last) {
                     write_pipe(fd, "FINISH");
-                }else
-                    pthread_mutex_unlock(&shared_memory->mutex);
+                }
+                
+                update_box();
 
                 pthread_exit(NULL);
             }else
@@ -132,27 +127,30 @@ void car_simulator(void * arg) {
             write_debug("CAR %d COMPLETED LAP Nº%d\n", car->number, laps_after);
             if(join_box(car)) {
                 pthread_mutex_lock(&shared_memory->mutex);
-                if(shared_memory->end_race == 1) {
+                int end_race = shared_memory->end_race;
+                pthread_mutex_unlock(&shared_memory->mutex);
+                if(end_race) {
+                    pthread_mutex_lock(&shared_memory->mutex);
                     shared_memory->finish_cars++;
                     int rank = ++shared_memory->ranking;
                     int last = shared_memory->finish_cars == shared_memory->total_cars;
                     pthread_mutex_unlock(&shared_memory->mutex);
+
                     pthread_mutex_lock(&team->team_mutex);
                     car->status = FINISHED;
                     car->rank = rank;
                     pthread_mutex_unlock(&team->team_mutex);
 
-                    update_box();
-
                     write_pipe(fd, "CAR %d FINISHED THE RACE", car->number);
 
-                    if(last)
+                    if(last) {
                         write_pipe(fd, "FINISH");
+                    }
+                    
+                    update_box();
 
                     pthread_exit(NULL);
                 }
-                
-                pthread_mutex_unlock(&shared_memory->mutex);
 
                 continue;
             }
@@ -185,22 +183,24 @@ void * car_thread(void * p) {
 
 void update_box() {
     pthread_mutex_lock(&team->team_mutex);
-    box.request_reservation = 1;
+    team->box.request_reservation = 1;
     pthread_mutex_unlock(&team->team_mutex);
-    pthread_cond_signal(&box.request);
+    pthread_cond_signal(&team->box.request);
 }
 
 int join_box(car_t * car) {
     double current_speed = (car->status == SAFE_MODE) ? 0.3*car->speed : car->speed;
     int max_laps = (int) (car->fuel / (config->lap_distance/current_speed * car->consumption));
-    if((box.status == RESERVED && car->status == SAFE_MODE) || (box.status == OPEN && max_laps <= 4)) {
-        if(pthread_mutex_trylock(&box.mutex) == 0) {
-            box.car = car;
-            pthread_cond_signal(&box.request);
+    if((team->box.status == RESERVED && car->status == SAFE_MODE) || (team->box.status == OPEN && max_laps <= 4)) {
+        if(pthread_mutex_trylock(&team->box.mutex) == 0) {
+            write_log("GOT THE LOCK %d\n", car->number);
+            team->box.car = car;
+            team->box.has_car = 1;
+            pthread_cond_signal(&team->box.request);
 
-            pthread_mutex_lock(&box.leave_mutex);
-            pthread_cond_wait(&box.car_leave, &box.leave_mutex);
-            pthread_mutex_unlock(&box.leave_mutex);
+            pthread_mutex_lock(&team->box.leave_mutex);
+            pthread_cond_wait(&team->box.car_leave, &team->box.leave_mutex);
+            pthread_mutex_unlock(&team->box.leave_mutex);
             return 1;
         }       
     }
@@ -210,26 +210,30 @@ int join_box(car_t * car) {
 void * box_handler() {
     while(1) {
         pthread_mutex_lock(&shared_memory->mutex);
-        if(!shared_memory->race_started)
-            break;
+        int finish = !shared_memory->race_started;
         pthread_mutex_unlock(&shared_memory->mutex);
 
+        if(finish)
+            break;
+
         pthread_mutex_lock(&team->team_mutex);
-        if(box.request_reservation){
-            box.request_reservation = 0;
-            box.status = (team->safe_cars > 0) ? RESERVED : OPEN;
+        if(team->box.request_reservation){
+            team->box.request_reservation = 0;
+            team->box.status = (team->safe_cars > 0) ? RESERVED : OPEN;
         }
         pthread_mutex_unlock(&team->team_mutex);
 
-        pthread_mutex_lock(&box.join_mutex);
-        pthread_cond_wait(&box.request, &box.join_mutex);
-        pthread_mutex_unlock(&box.join_mutex);
+        if(!team->box.has_car) {
+            pthread_mutex_lock(&team->box.join_mutex);
+            pthread_cond_wait(&team->box.request, &team->box.join_mutex);
+            pthread_mutex_unlock(&team->box.join_mutex);
+        }
 
         pthread_mutex_lock(&team->team_mutex);
-        int res = box.request_reservation;
+        int res = team->box.request_reservation;
         if(res){
-            box.request_reservation = 0;
-            box.status = (team->safe_cars > 0) ? RESERVED : OPEN;
+            team->box.request_reservation = 0;
+            team->box.status = (team->safe_cars > 0) ? RESERVED : OPEN;
         }
         pthread_mutex_unlock(&team->team_mutex);
 
@@ -237,30 +241,31 @@ void * box_handler() {
             continue;
 
         pthread_mutex_lock(&team->team_mutex);
-        box.status = OCCUPIED;
-        enum car_status join_state = box.car->status;
-        box.car->status = BOX;
+        team->box.status = OCCUPIED;
+        enum car_status join_state = team->box.car->status;
+        team->box.car->status = BOX;
         pthread_mutex_unlock(&team->team_mutex);
 
-        write_pipe(fd, "CAR %d ENTER THE BOX [TEAM: %s]", box.car->number, team->name);
+        write_pipe(fd, "CAR %d ENTER THE BOX [TEAM: %s]", team->box.car->number, team->name);
         
         usleep((rand() % (config->max_repair_time - config->min_repair_time + 1) + config->min_repair_time ) * 1000000.0/config->time_units_per_second);
         
         pthread_mutex_lock(&team->team_mutex);
-        box.car->fuel = config->fuel_capacity;
-        box.car->total_boxstops++;
-        box.car->status = RACE;
-        box.car->total_refuels++;
+        team->box.car->fuel = config->fuel_capacity;
+        team->box.car->total_boxstops++;
+        team->box.car->status = RACE;
+        team->box.car->total_refuels++;
         if(join_state == SAFE_MODE)
             team->safe_cars--;
-        box.status = (team->safe_cars > 0) ? RESERVED : OPEN;
+        team->box.status = (team->safe_cars > 0) ? RESERVED : OPEN;
+        team->box.has_car = 0;
         pthread_mutex_unlock(&team->team_mutex);
 
-        write_pipe(fd, "CAR %d LEFT THE BOX [TEAM: %s]", box.car->number, team->name);
+        write_pipe(fd, "CAR %d LEFT THE BOX [TEAM: %s]", team->box.car->number, team->name);
 
-        pthread_cond_signal(&box.car_leave);
+        pthread_cond_signal(&team->box.car_leave);
 
-        pthread_mutex_unlock(&box.mutex);
+        pthread_mutex_unlock(&team->box.mutex);
     }
 
     pthread_exit(NULL);
@@ -292,7 +297,7 @@ void end_team() {
     if(shared_memory->race_started == 0)
         exit(0);
 
-    //pthread_join(box_thread, NULL);
+    pthread_join(box_thread, NULL);
     for(int i = 0; i < team->num_cars; i++)
         pthread_join(get_car(shared_memory, config, team->pos_array, i)->thread, NULL);
     write_log("TEAM %s IS LEAVING\n", team->name);
@@ -318,12 +323,14 @@ void team_manager(shared_memory_t * shared, team_t * t, config_t * conf, int fd_
     team = t;
     fd = fd_unnamed_pipe;
 
-    init_mutex_proc(&box.mutex);
-    init_mutex_proc(&box.join_mutex);
-    init_mutex_proc(&box.leave_mutex);
-    init_cond_proc(&box.request);
-    init_cond_proc(&box.car_leave);
-    box.request_reservation = 0;
+    init_mutex_proc(&team->box.mutex);
+    init_mutex_proc(&team->box.join_mutex);
+    init_mutex_proc(&team->box.leave_mutex);
+    init_cond_proc(&team->box.request);
+    init_cond_proc(&team->box.car_leave);
+    team->box.request_reservation = 0;
+    team->box.car = NULL;
+    team->box.has_car = 0;
 
     write_debug("TEAM MANAGER %s CREATED [%d]\n", team->name, getpid());
     
@@ -354,16 +361,10 @@ void team_function() {
     
     pthread_create(&box_thread, NULL, box_handler, NULL);
 
-    // Espera por um sinal sobre o fim da corrida
-    /*
-    pthread_mutex_lock(&shared_memory->end_race_mutex);
-    pthread_cond_wait(&shared_memory->end_race_cond, &shared_memory->end_race_mutex);
-    pthread_mutex_unlock(&shared_memory->end_race_mutex);
-    */
-
     pthread_join(box_thread, NULL);
     for(int i = 0; i < team->num_cars; i++) {
         pthread_join(get_car(shared_memory, config, team->pos_array, i)->thread, NULL);
         write_debug("TEAM %s CAR %d IS LEAVING\n", team->name, get_car(shared_memory, config, team->pos_array, i)->number);
     }
+
 }

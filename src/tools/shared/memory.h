@@ -36,12 +36,13 @@ enum box_status {
 };
 
 struct box {
-    pthread_mutex_t mutex, join_mutex, leave_mutex;
-    pthread_cond_t request, car_leave;
+    int has_car;
     int request_reservation;
     // AKA carro_que_quer_entrar_nao_tenho_nome_para_esta_variavel_xD
     car_t * car;
     enum box_status status;
+    pthread_cond_t request, car_leave;
+    pthread_mutex_t mutex, join_mutex, leave_mutex;
 };
 
 
@@ -71,6 +72,7 @@ struct team {
     int safe_cars;
     char name[MAX_STRING];
     pthread_mutex_t team_mutex;
+    box_t box;
 };
 
 struct car {
