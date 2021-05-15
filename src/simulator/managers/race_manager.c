@@ -101,12 +101,9 @@ int load_car(char * string) {
     int car_number, speed, reliability;
     double consumption;
     
-    const char * format = "ADDCAR TEAM: %s, CAR: %d, SPEED: %d, CONSUMPTION: %lf, RELIABILITY: %d";
-
-    write_log("\nString: %s\nFormat: %s\n", string, format);
+    const char * format = "ADDCAR TEAM: %[a-zA-Z0-9 ], CAR: %d, SPEED: %d, CONSUMPTION: %lf, RELIABILITY: %d";
 
     int res = sscanf(string, format, team_name, &car_number, &speed, &consumption, &reliability);
-    write_log("%d\n", res);
 
     if(res != 5)
         return 0;
@@ -298,7 +295,7 @@ int command_handler(char * string) {
 }
 
 int receive_car_messages(char * string) {
-    write_log("RECEIVED CAR MESSAGE: \"%s\"\n", string);
+    write_log("%s\n", string);
     if(ends_with(string, "FINISHED THE RACE") || ends_with(string, "GAVE UP")) {
         pthread_mutex_lock(&shared_memory->mutex);
         if(shared_memory->finish_cars == shared_memory->total_cars) {

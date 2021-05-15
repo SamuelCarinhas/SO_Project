@@ -29,10 +29,21 @@
 typedef struct car car_t;
 typedef struct team team_t;
 typedef struct shared_memory shared_memory_t;
+typedef struct box box_t;
 
 enum box_status {
     OPEN, RESERVED, OCCUPIED
 };
+
+struct box {
+    pthread_mutex_t mutex, join_mutex, leave_mutex;
+    pthread_cond_t request, car_leave;
+    int request_reservation;
+    // AKA carro_que_quer_entrar_nao_tenho_nome_para_esta_variavel_xD
+    car_t * car;
+    enum box_status status;
+};
+
 
 enum car_status {
     RACE, SAFE_MODE, BOX, GAVE_UP, FINISHED
@@ -60,7 +71,6 @@ struct team {
     int safe_cars;
     char name[MAX_STRING];
     pthread_mutex_t team_mutex;
-    enum box_status box;
 };
 
 struct car {
