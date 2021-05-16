@@ -1,4 +1,4 @@
-for i in {1..30}
+for i in {1..20}
 do
 	echo "ADDCAR TEAM: AAA, CAR: 1, SPEED: 150, CONSUMPTION: 1, RELIABILITY: 87" > COMMAND_PIPE
 	sleep 0.01
