@@ -27,7 +27,7 @@ void car_simulator(void * arg) {
     double current_speed, current_consumption;
 
     while(1) {
-        usleep(1000000.0/config->time_units_per_second);
+        sync_sleep(shared_memory, 1);
         if(msgrcv(shared_memory->message_queue, &message, sizeof(message_t) - sizeof(long), car->number, IPC_NOWAIT) >= 0) {
             pthread_mutex_lock(&team->team_mutex);
             car->status = SAFE_MODE;
@@ -41,11 +41,8 @@ void car_simulator(void * arg) {
         current_speed = (car->status == SAFE_MODE) ? 0.3*car->speed : car->speed;
         current_consumption = (car->status == SAFE_MODE) ? 0.4*car->consumption : car->consumption;
 
-        //check if the car can reach the box in the next instant
         int laps = (int) (car->distance / config->lap_distance);
         int laps_after = (int)((car->distance + current_speed) / config->lap_distance);
-        //double distance_until_box = (laps + 1) * config->lap_distance - car->distance;
-        //double fuel_needed = current_consumption*distance_until_box/current_speed;
         
         car->distance += current_speed;
         car->fuel -= current_consumption;
@@ -174,7 +171,7 @@ void * car_thread(void * p) {
     car_t * car = (car_t *) p;
     write_debug("CAR %d [TEAM %s] CREATED\n", car->number, team->name);
 
-    wait_for_start(shared_memory, &team->team_mutex);
+    wait_for_start(shared_memory, &shared_memory->mutex);
 
     car_simulator(car);
 
@@ -193,7 +190,6 @@ int join_box(car_t * car) {
     int max_laps = (int) (car->fuel / (config->lap_distance/current_speed * car->consumption));
     if((team->box.status == RESERVED && car->status == SAFE_MODE) || (team->box.status == OPEN && max_laps <= 4)) {
         if(pthread_mutex_trylock(&team->box.mutex) == 0) {
-            write_log("GOT THE LOCK %d\n", car->number);
             team->box.car = car;
             team->box.has_car = 1;
             pthread_cond_signal(&team->box.request);
@@ -248,8 +244,7 @@ void * box_handler() {
 
         write_pipe(fd, "CAR %d ENTER THE BOX [TEAM: %s]", team->box.car->number, team->name);
         
-        usleep((rand() % (config->max_repair_time - config->min_repair_time + 1) + config->min_repair_time ) * 1000000.0/config->time_units_per_second);
-        
+        sync_sleep(shared_memory, (rand() % (config->max_repair_time - config->min_repair_time + 1) + config->min_repair_time));
         pthread_mutex_lock(&team->team_mutex);
         team->box.car->fuel = config->fuel_capacity;
         team->box.car->total_boxstops++;
@@ -300,6 +295,13 @@ void end_team() {
     pthread_join(box_thread, NULL);
     for(int i = 0; i < team->num_cars; i++)
         pthread_join(get_car(shared_memory, config, team->pos_array, i)->thread, NULL);
+    
+    destroy_mutex_proc(&team->box.mutex);
+    destroy_mutex_proc(&team->box.join_mutex);
+    destroy_mutex_proc(&team->box.leave_mutex);
+    destroy_cond_proc(&team->box.request);
+    destroy_cond_proc(&team->box.car_leave);
+    
     write_log("TEAM %s IS LEAVING\n", team->name);
     exit(0);
 }
@@ -367,4 +369,9 @@ void team_function() {
         write_debug("TEAM %s CAR %d IS LEAVING\n", team->name, get_car(shared_memory, config, team->pos_array, i)->number);
     }
 
+    destroy_mutex_proc(&team->box.mutex);
+    destroy_mutex_proc(&team->box.join_mutex);
+    destroy_mutex_proc(&team->box.leave_mutex);
+    destroy_cond_proc(&team->box.request);
+    destroy_cond_proc(&team->box.car_leave);
 }

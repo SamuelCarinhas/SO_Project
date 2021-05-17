@@ -30,16 +30,16 @@ typedef struct car car_t;
 typedef struct team team_t;
 typedef struct shared_memory shared_memory_t;
 typedef struct box box_t;
+typedef struct clock sync_clock_t;
 
 enum box_status {
     OPEN, RESERVED, OCCUPIED
 };
 
 struct box {
+    car_t * car;
     int has_car;
     int request_reservation;
-    // AKA carro_que_quer_entrar_nao_tenho_nome_para_esta_variavel_xD
-    car_t * car;
     enum box_status status;
     pthread_cond_t request, car_leave;
     pthread_mutex_t mutex, join_mutex, leave_mutex;
@@ -52,6 +52,14 @@ enum car_status {
 
 extern char * car_string[];
 
+struct clock {
+    int waiting;
+    pthread_mutex_t mutex;
+    pthread_mutex_t wait_mutex;
+    pthread_cond_t wait_cond;
+    pthread_cond_t time_cond;
+};
+
 struct shared_memory {
     int ranking;
     int end_race;
@@ -61,6 +69,7 @@ struct shared_memory {
     int race_started;
     int message_queue;
     int restarting_race;
+    sync_clock_t clock;
     pthread_mutex_t mutex, mutex_reset, end_race_mutex;
     pthread_cond_t new_command, reset_race, end_race_cond;
 };
