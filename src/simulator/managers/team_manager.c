@@ -266,46 +266,6 @@ void * box_handler() {
     pthread_exit(NULL);
 }
 
-void reset_team() {
-    write_debug("TEAM_MANAGER [%s]: RECEIVED SIGUSR1\n", team->name);
-
-    for(int i = 0; i < team->num_cars; i++)
-        pthread_join(get_car(shared_memory, config, team->pos_array, i)->thread, NULL);
-
-    for(int i = 0; i < team->num_cars; i++) {
-        car_t * car = get_car(shared_memory, config, team->pos_array, i);
-        pthread_create(&car->thread, NULL, car_thread, car);
-    }
-}
-
-void end_team() {
-    pthread_mutex_lock(&shared_memory->mutex);
-    int restarting = shared_memory->restarting_race;
-    pthread_mutex_unlock(&shared_memory->mutex);
-    
-    if(restarting)
-        return;
-        
-    signal(SIGINT, SIG_IGN);
-    write_debug("TEAM_MANAGER [%s]: RECEIVED SIGINT\n", team->name);
-
-    if(shared_memory->race_started == 0)
-        exit(0);
-
-    pthread_join(box_thread, NULL);
-    for(int i = 0; i < team->num_cars; i++)
-        pthread_join(get_car(shared_memory, config, team->pos_array, i)->thread, NULL);
-    
-    destroy_mutex_proc(&team->box.mutex);
-    destroy_mutex_proc(&team->box.join_mutex);
-    destroy_mutex_proc(&team->box.leave_mutex);
-    destroy_cond_proc(&team->box.request);
-    destroy_cond_proc(&team->box.car_leave);
-    
-    write_log("TEAM %s IS LEAVING\n", team->name);
-    exit(0);
-}
-
 /*
 * NAME :                            void team_manager(shared_memory_t * shared_memory, team_t * team)
 *
@@ -342,31 +302,37 @@ void team_manager(shared_memory_t * shared, team_t * t, config_t * conf, int fd_
 }
 
 void team_function() {
-    signal(SIGINT, end_team);
-    signal(SIGUSR1, reset_team);
+    signal(SIGINT, SIG_IGN);
+    signal(SIGUSR1, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
+
     while(1) {
-        pthread_mutex_lock(&shared_memory->mutex);
-        while (team->num_cars == team->res && shared_memory->race_started == 0) {
-            pthread_cond_wait(&shared_memory->new_command, &shared_memory->mutex);
+        while(1) {
+            pthread_mutex_lock(&shared_memory->mutex);
+            while (team->num_cars == team->res && shared_memory->race_started == 0) {
+                pthread_cond_wait(&shared_memory->new_command, &shared_memory->mutex);
+            }
+            int can_start = shared_memory->race_started;
+            pthread_mutex_unlock(&shared_memory->mutex);
+
+            if(can_start) {
+                break;
+            }
+
+            car_t * car = get_car(shared_memory, config, team->pos_array, team->res);
+            pthread_create(&car->thread, NULL, car_thread, car);
+            team->res++;
         }
-        int can_start = shared_memory->race_started;
-        pthread_mutex_unlock(&shared_memory->mutex);
+        
+        pthread_create(&box_thread, NULL, box_handler, NULL);
 
-        if(can_start) {
-            break;
+        pthread_join(box_thread, NULL);
+        for(int i = 0; i < team->num_cars; i++) {
+            pthread_join(get_car(shared_memory, config, team->pos_array, i)->thread, NULL);
+            write_debug("TEAM %s CAR %d IS LEAVING\n", team->name, get_car(shared_memory, config, team->pos_array, i)->number);
         }
 
-        car_t * car = get_car(shared_memory, config, team->pos_array, team->res);
-        pthread_create(&car->thread, NULL, car_thread, car);
-        team->res++;
-    }
-    
-    pthread_create(&box_thread, NULL, box_handler, NULL);
-
-    pthread_join(box_thread, NULL);
-    for(int i = 0; i < team->num_cars; i++) {
-        pthread_join(get_car(shared_memory, config, team->pos_array, i)->thread, NULL);
-        write_debug("TEAM %s CAR %d IS LEAVING\n", team->name, get_car(shared_memory, config, team->pos_array, i)->number);
+        break;
     }
 
     destroy_mutex_proc(&team->box.mutex);

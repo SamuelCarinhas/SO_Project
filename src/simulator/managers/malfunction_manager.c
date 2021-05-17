@@ -80,6 +80,9 @@ void malfunction_signal_handler(int sig) {
         if(restarting)
             return;
 
+        if(shared_memory->race_started)
+            return;
+
         write_debug("MALFUNCTION: SIGINT RECEIVED\n");
         exit(0);
     } else if(sig == SIGUSR1) {

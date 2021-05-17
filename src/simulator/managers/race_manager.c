@@ -178,13 +178,8 @@ void reset_race() {
         return;
     }
     shared_memory->end_race = 1;
-    //shared_memory->race_started = 0;
     shared_memory->restarting_race = 1;
     pthread_mutex_unlock(&shared_memory->mutex);
-
-    kill(malfunction_manager_pid, SIGUSR1);
-    for(int i = 0; i < shared_memory->num_teams; i++)
-        kill(teams_pids[i], SIGUSR1);
     
     int pipe_arr[shared_memory->num_teams + 1];
     pipe_arr[0] = fd;
@@ -195,7 +190,8 @@ void reset_race() {
 
     show_statistics(shared_memory, config);
 
-    init_memory(shared_memory);
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!! FAZER O SIGUSR1 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     team_t * teams = get_teams(shared_memory);
     for(int i = 0; i < shared_memory->num_teams; i++) {
         team_t * team = &teams[i];
@@ -204,6 +200,10 @@ void reset_race() {
             init_car(get_car(shared_memory, config, team->pos_array, j), config);
         }
     }
+
+    // ESPERA PELAS THREADS
+
+    init_memory(shared_memory);
 
     write_log("RACE WAS RESTARTED\n");
     signal(SIGINT, end_race);
@@ -229,16 +229,16 @@ void clean_race() {
 }
 
 void end_race() {
-    write_log("RACE MANAGER: SIGINT\n");
     signal(SIGINT, SIG_IGN);
     signal(SIGUSR1, SIG_IGN);
+
+    printf("A\n");
     
     pthread_mutex_lock(&shared_memory->mutex);
     shared_memory->end_race = 1;
     pthread_mutex_unlock(&shared_memory->mutex);
-    
-    for(int i = 0; i < shared_memory->num_teams; i++)
-        kill(teams_pids[i], SIGINT);
+
+    printf("B\n");
 
     if(shared_memory->race_started) {
         int pipe_arr[shared_memory->num_teams + 1];
@@ -247,11 +247,21 @@ void end_race() {
             pipe_arr[i] = pipes[i-1][0];
         read_from_pipes(pipe_arr, shared_memory->num_teams + 1, receive_car_messages, command_handler);  
     }
+
+    printf("C\n");
     
     for(int i = 0; i < shared_memory->num_teams; i++) {
         waitpid(teams_pids[i], NULL, 0);
         write_debug("TEAM %s IS LEAVING [%d]\n", get_teams(shared_memory)[i].name, teams_pids[i]);
     }
+
+    printf("D\n");
+
+    pthread_mutex_lock(&shared_memory->mutex);
+    shared_memory->end_race = 0;
+    pthread_mutex_unlock(&shared_memory->mutex);
+
+    printf("E\n");
 
     clean_race();
 
@@ -321,6 +331,7 @@ int receive_car_messages(char * string) {
 
 void race() {
     signal(SIGINT, end_race);
+    signal(SIGTSTP, SIG_IGN);
     signal(SIGUSR1, reset_race);
 
     while(1) {

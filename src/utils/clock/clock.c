@@ -10,9 +10,10 @@
 
 void sync_clock(shared_memory_t * shared, config_t * config) {
     wait_for_start(shared, &shared->mutex);
-    while(1) {
+    signal(SIGINT, SIG_IGN);
+    while(shared->race_started) {
         pthread_mutex_lock(&shared->clock.wait_mutex);
-        while(shared->clock.waiting < shared->total_cars - shared->finish_cars + 1) {
+        while(shared->clock.waiting < shared->total_cars - shared->finish_cars + shared->race_started) {
             pthread_cond_wait(&shared->clock.wait_cond, &shared->clock.wait_mutex);
         }
         pthread_mutex_unlock(&shared->clock.wait_mutex);
