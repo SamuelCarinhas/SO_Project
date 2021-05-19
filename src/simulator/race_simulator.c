@@ -108,21 +108,16 @@ void clean() {
 
 void signal_sigint() {
     pthread_mutex_lock(&shared_memory->mutex);
-    int restarting = shared_memory->restarting_race;
+    shared_memory->end_race = 1; 
     pthread_mutex_unlock(&shared_memory->mutex);
-    
-    if(restarting)
-        return;
 
     write_log("RACE SIMULATOR: SIGINT\n");
-    kill(malfunction_manager_pid, SIGINT);
-    kill(race_manager_pid, SIGINT);
 
     while(wait(NULL) != -1);
-
-    show_statistics(shared_memory, config);
+    
     clean();
 
+    write_debug("RACE SIMULATOR LEFT\n");
 
     exit(0);
 }

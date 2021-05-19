@@ -20,7 +20,6 @@ int receive_car_messages(char * string);
 
 void race();
 void clean_race();
-void end_race();
 
 /*
 * NAME :                            void create_team(char * team_name, shared_memory_t * shared_memory, int pos)
@@ -170,7 +169,6 @@ int load_car(char * string) {
 }
 
 void reset_race() {
-    signal(SIGINT, SIG_IGN);
     pthread_mutex_lock(&shared_memory->mutex);
     if(shared_memory->race_started == 0) {
         pthread_mutex_unlock(&shared_memory->mutex);
@@ -206,7 +204,6 @@ void reset_race() {
     init_memory(shared_memory);
 
     write_log("RACE WAS RESTARTED\n");
-    signal(SIGINT, end_race);
 }
 
 void clean_race() {
@@ -224,49 +221,7 @@ void clean_race() {
 
     free(pipes);
     free(teams_pids);
-
-    exit(0);
-}
-
-void end_race() {
-    signal(SIGINT, SIG_IGN);
-    signal(SIGUSR1, SIG_IGN);
-
-    printf("A\n");
-    
-    pthread_mutex_lock(&shared_memory->mutex);
-    shared_memory->end_race = 1;
-    pthread_mutex_unlock(&shared_memory->mutex);
-
-    printf("B\n");
-
-    if(shared_memory->race_started) {
-        int pipe_arr[shared_memory->num_teams + 1];
-        pipe_arr[0] = fd;
-        for(int i = 1; i <= shared_memory->num_teams; i++)
-            pipe_arr[i] = pipes[i-1][0];
-        read_from_pipes(pipe_arr, shared_memory->num_teams + 1, receive_car_messages, command_handler);  
-    }
-
-    printf("C\n");
-    
-    for(int i = 0; i < shared_memory->num_teams; i++) {
-        waitpid(teams_pids[i], NULL, 0);
-        write_debug("TEAM %s IS LEAVING [%d]\n", get_teams(shared_memory)[i].name, teams_pids[i]);
-    }
-
-    printf("D\n");
-
-    pthread_mutex_lock(&shared_memory->mutex);
-    shared_memory->end_race = 0;
-    pthread_mutex_unlock(&shared_memory->mutex);
-
-    printf("E\n");
-
-    clean_race();
-
-    exit(0);
-}
+} 
 
 int command_handler(char * string) {
     pthread_mutex_lock(&shared_memory->mutex);
@@ -312,7 +267,6 @@ int receive_car_messages(char * string) {
             pthread_mutex_unlock(&shared_memory->mutex);
 
             team_t * teams = get_teams(shared_memory);
-
             for(int i = 0; i < shared_memory->num_teams; i++) {
                 pthread_mutex_lock(&teams[i].team_mutex);
                 teams[i].box.request_reservation = 1;
@@ -330,20 +284,18 @@ int receive_car_messages(char * string) {
 }
 
 void race() {
-    signal(SIGINT, end_race);
+    signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
     signal(SIGUSR1, reset_race);
 
-    while(1) {
-        read_from_pipes(&fd, 1, NULL, command_handler);
+    read_from_pipes(&fd, 1, NULL, command_handler);
 
-        int pipe_arr[shared_memory->num_teams + 1];
-        pipe_arr[0] = fd;
-        for(int i = 1; i <= shared_memory->num_teams; i++)
-            pipe_arr[i] = pipes[i-1][0];
-        
-        if(read_from_pipes(pipe_arr, shared_memory->num_teams + 1, receive_car_messages, command_handler) != FINISH) break;
-    }
+    int pipe_arr[shared_memory->num_teams + 1];
+    pipe_arr[0] = fd;
+    for(int i = 1; i <= shared_memory->num_teams; i++)
+        pipe_arr[i] = pipes[i-1][0];
+    
+    read_from_pipes(pipe_arr, shared_memory->num_teams + 1, receive_car_messages, command_handler);
 }
 
 /*
@@ -380,7 +332,7 @@ void race_manager(shared_memory_t * shared, config_t * conf, pid_t malfunction) 
 
     teams_pids = (pid_t *) malloc(sizeof(pid_t) * config->teams);
 
-    //read comments from named pipe
+    //read comments from named & unnamed pipes
     race();
 
     for(int i = 0; i < shared_memory->num_teams; i++) {
@@ -389,6 +341,7 @@ void race_manager(shared_memory_t * shared, config_t * conf, pid_t malfunction) 
     }
 
     show_statistics(shared_memory, config);
-
     clean_race();
+    
+    write_debug("RACE MANAGER LEFT\n");
 }

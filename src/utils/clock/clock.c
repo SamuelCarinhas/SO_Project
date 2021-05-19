@@ -8,10 +8,63 @@
 
 #include "clock.h"
 
+
 void sync_clock(shared_memory_t * shared, config_t * config) {
     wait_for_start(shared, &shared->mutex);
     signal(SIGINT, SIG_IGN);
     while(shared->race_started) {
+        usleep(1.0/config->time_units_per_second*1000000);
+
+        pthread_mutex_lock(&shared->mutex);
+        //int res = shared->end_race == 1 && shared->race_started == 0;
+        int res = shared->total_cars == shared->finish_cars && shared->restarting_race == 0;
+        pthread_mutex_unlock(&shared->mutex);
+
+
+        pthread_mutex_lock(&shared->clock.mutex);
+        pthread_cond_broadcast(&shared->clock.time_cond);
+        pthread_mutex_unlock(&shared->clock.mutex);
+        
+        if(res) {
+            break;
+        }
+
+    }
+    write_debug("CLOCK LEFT\n");
+}
+
+void sync_sleep(shared_memory_t * shared, int time) {
+    int count = 0;
+    while(count < time) {
+        count++; 
+
+        pthread_mutex_lock(&shared->mutex);
+        //int res = shared->end_race == 1 && shared->race_started == 0;
+        int res = shared->total_cars == shared->finish_cars && shared->restarting_race == 0;
+        pthread_mutex_unlock(&shared->mutex);
+
+        if(res)
+            break;
+
+        pthread_mutex_lock(&shared->clock.mutex);
+        pthread_cond_wait(&shared->clock.time_cond, &shared->clock.mutex);
+        pthread_mutex_unlock(&shared->clock.mutex);
+    }
+}
+
+
+/*
+void sync_clock(shared_memory_t * shared, config_t * config) {
+    wait_for_start(shared, &shared->mutex);
+    signal(SIGINT, SIG_IGN);
+    while(1) { 
+        pthread_mutex_lock(&shared->mutex);
+        int res = shared->end_race == 1 && shared->race_started == 0;
+        pthread_mutex_lock(&shared->mutex);
+
+        if(res)
+            break;
+
         pthread_mutex_lock(&shared->clock.wait_mutex);
         while(shared->clock.waiting < shared->total_cars - shared->finish_cars + shared->race_started) {
             pthread_cond_wait(&shared->clock.wait_cond, &shared->clock.wait_mutex);
@@ -31,6 +84,7 @@ void sync_sleep(shared_memory_t * shared, int time) {
     int count = 0;
     while(count < time) {
         count++;
+
         pthread_mutex_lock(&shared->clock.wait_mutex);
         shared->clock.waiting++;
         pthread_cond_signal(&shared->clock.wait_cond);
@@ -46,3 +100,4 @@ void sync_sleep(shared_memory_t * shared, int time) {
         pthread_mutex_unlock(&shared->clock.wait_mutex);
     }
 }
+*/
