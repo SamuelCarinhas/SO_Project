@@ -33,5 +33,6 @@
 #include "../config/config.h"
 #include "../utils/pipes/pipes.h"
 #include "../utils/string/string.h"
+#include "../utils/clock/clock.h"
 
 #endif

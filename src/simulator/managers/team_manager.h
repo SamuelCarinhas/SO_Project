@@ -30,7 +30,8 @@
 #include "../../config/config.h"
 #include "../../utils/pipes/pipes.h"
 #include "../../utils/string/string.h"
+#include "../../utils/clock/clock.h"
 
-void team_manager(shared_memory_t *shared_memory, team_t * team, config_t * config, int fd);
+extern void team_manager(shared_memory_t *shared_memory, team_t * team, config_t * config, int fd);
 
 #endif

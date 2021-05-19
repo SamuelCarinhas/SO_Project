@@ -12,7 +12,7 @@ shared_memory_t * shared_memory;
 config_t * config;
 key_t shmkey;
 int shmid;
-pid_t race_manager_pid, malfunction_manager_pid;
+pid_t race_manager_pid, malfunction_manager_pid, clock_pid;
 
 void signal_tstp();
 void signal_sigint();
@@ -51,13 +51,16 @@ void init() {
         exit(1);
     }
 
-
     init_mutex_proc(&shared_memory->mutex);
     init_mutex_proc(&shared_memory->mutex_reset);
     init_mutex_proc(&shared_memory->end_race_mutex);
+    init_mutex_proc(&shared_memory->clock.wait_mutex);
+    init_mutex_proc(&shared_memory->clock.mutex);
     init_cond_proc(&shared_memory->new_command);
     init_cond_proc(&shared_memory->reset_race);
     init_cond_proc(&shared_memory->end_race_cond);
+    init_cond_proc(&shared_memory->clock.wait_cond);
+    init_cond_proc(&shared_memory->clock.time_cond);
 
     shared_memory->message_queue = msgget(IPC_PRIVATE, IPC_CREAT|0777);
     if(shared_memory->message_queue <0){
@@ -68,6 +71,7 @@ void init() {
     shared_memory->race_started = 0;
     init_memory(shared_memory);
     shared_memory->total_cars = 0;
+    shared_memory->clock.waiting = 0;
     write_log("SIMULATOR STARTING [%d]\n", getpid());
 }
 
@@ -84,7 +88,16 @@ void init() {
 *
 */
 void clean() {
-    // TODO: !!!!!!!!!!!!!!!!!! DESTRUIR MUTEXES E COND VARIABLES !!!!!!!!!!!!!!!!
+    destroy_mutex_proc(&shared_memory->mutex);
+    destroy_mutex_proc(&shared_memory->mutex_reset);
+    destroy_mutex_proc(&shared_memory->end_race_mutex);
+    destroy_mutex_proc(&shared_memory->clock.wait_mutex);
+    destroy_mutex_proc(&shared_memory->clock.mutex);
+    destroy_cond_proc(&shared_memory->new_command);
+    destroy_cond_proc(&shared_memory->reset_race);
+    destroy_cond_proc(&shared_memory->end_race_cond);
+    destroy_cond_proc(&shared_memory->clock.wait_cond);
+    destroy_cond_proc(&shared_memory->clock.time_cond);
     write_log("SIMULATOR CLOSING [%d]\n", getpid());
     destroy_mutex_log();
     unlink(PIPE_NAME);
@@ -95,21 +108,16 @@ void clean() {
 
 void signal_sigint() {
     pthread_mutex_lock(&shared_memory->mutex);
-    int restarting = shared_memory->restarting_race;
+    shared_memory->end_race = 1; 
     pthread_mutex_unlock(&shared_memory->mutex);
-    
-    if(restarting)
-        return;
 
     write_log("RACE SIMULATOR: SIGINT\n");
-    kill(malfunction_manager_pid, SIGINT);
-    kill(race_manager_pid, SIGINT);
 
     while(wait(NULL) != -1);
-
-    show_statistics(shared_memory, config);
+    
     clean();
 
+    write_debug("RACE SIMULATOR LEFT\n");
 
     exit(0);
 }
@@ -158,6 +166,12 @@ int main() {
         exit(0);
     }
 
+    clock_pid = fork();
+    if(clock_pid == 0) {
+        sync_clock(shared_memory, config);
+        exit(0);
+    }
+    
     race_manager_pid = fork();
     if(race_manager_pid == 0) {
         race_manager(shared_memory, config, malfunction_manager_pid);
@@ -172,7 +186,9 @@ int main() {
 
     waitpid(malfunction_manager_pid, NULL, 0);
     write_debug("MALFUNCTION MANAGER IS LEAVING [%d]\n", malfunction_manager_pid);
-    
+
+    waitpid(clock_pid, NULL, 0);
+    write_debug("CLOCK IS LEAVING [%d]\n", clock_pid);
 
     clean();
 

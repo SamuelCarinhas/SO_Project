@@ -20,6 +20,7 @@ void show_statistics(shared_memory_t * shared_memory, config_t * config) {
     pthread_mutex_lock(&shared_memory->mutex);
     int num_teams = shared_memory->num_teams;
     int total_cars = shared_memory->total_cars;
+    int finish_cars = shared_memory->finish_cars;
     pthread_mutex_unlock(&shared_memory->mutex);
 
     team_t * teams = get_teams(shared_memory);
@@ -74,7 +75,7 @@ void show_statistics(shared_memory_t * shared_memory, config_t * config) {
         strcat(buffer, buffer2);
     }
 
-    snprintf(buffer2, MAX_STRING*100, "------------------------------------------------------------\n| TOTAL MALFUNCTIONS: %36d |\n| TOTAL REFUELS: %41d |\n------------------------------------------------------------\n", total_malfunctions, total_refuels);
+    snprintf(buffer2, MAX_STRING*100, "------------------------------------------------------------\n| TOTAL MALFUNCTIONS: %36d |\n| TOTAL REFUELS: %41d |\n| TOTAL RACING CARS: %37d |\n------------------------------------------------------------\n", total_malfunctions, total_refuels, total_cars - finish_cars);
     strcat(buffer, buffer2);
 
     write_log(buffer);

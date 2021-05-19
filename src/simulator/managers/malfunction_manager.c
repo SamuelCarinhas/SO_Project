@@ -10,8 +10,7 @@
 
 shared_memory_t * shared_memory;
 config_t * config;
-void malfunction_generator();
-void malfunction_signal_handler(int sig);
+int malfunction_generator();
 
 /*
 * NAME :                            void race_manager(shared_memory_t * shared_memory)
@@ -28,15 +27,24 @@ void malfunction_signal_handler(int sig);
 *
 */
 void malfunction_manager(shared_memory_t * shared, config_t * conf) {
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGUSR1, SIG_IGN);
     write_debug("MALFUNCTION MANAGER CREATED [%d]\n", getpid());
     shared_memory = shared;
     config = conf;
-    malfunction_generator();
+
+    while(1) {
+        if(malfunction_generator())
+            break;
+    }
+
+    write_debug("MALFUNCTION MANAGER LEFT\n");
 }
 
-void malfunction_generator() {
-    signal(SIGINT, malfunction_signal_handler);
-    signal(SIGUSR1, malfunction_signal_handler);
+// 1 -> o malfunction tem que acabar
+// 0 -> dar reset
+int malfunction_generator() {
     int i, j, rand_num;
     
     srand(getpid());
@@ -47,10 +55,16 @@ void malfunction_generator() {
     message.malfunction = 1;
 
     while(1) {
-        usleep(1.0/config->time_units_per_second * config->malfunction_time_units * 1000000);
-        if(shared_memory->total_cars == shared_memory->finish_cars) {
-            exit(0);
-        }
+        sync_sleep(shared_memory, config->malfunction_time_units);
+
+        pthread_mutex_lock(&shared_memory->mutex);
+        //int res = shared_memory->end_race == 1 && shared_memory->race_started == 0;
+        int res = shared_memory->total_cars == shared_memory->finish_cars && shared_memory->restarting_race == 0;
+        pthread_mutex_unlock(&shared_memory->mutex);
+
+        if(res)
+            return 1; //to finish
+        
         for(i = 0; i < shared_memory->num_teams; i++) {
             for(j = 0; j < get_teams(shared_memory)[i].num_cars; j++) {
                 car_t * car = get_car(shared_memory, config, i, j);
@@ -68,22 +82,5 @@ void malfunction_generator() {
                 }
             }
         }
-    }
-}
-
-void malfunction_signal_handler(int sig) {
-    if(sig == SIGINT) {
-        pthread_mutex_lock(&shared_memory->mutex);
-        int restarting = shared_memory->restarting_race;
-        pthread_mutex_unlock(&shared_memory->mutex);
-        
-        if(restarting)
-            return;
-
-        write_debug("MALFUNCTION: SIGINT RECEIVED\n");
-        exit(0);
-    } else if(sig == SIGUSR1) {
-        write_debug("MALFUNCTION: SIGUSR1 RECEIVED\n");
-        wait_for_start(shared_memory, &shared_memory->mutex);
     }
 }
