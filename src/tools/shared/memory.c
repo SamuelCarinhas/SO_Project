@@ -43,7 +43,7 @@ void show_statistics(shared_memory_t * shared_memory, config_t * config) {
             total_malfunctions += car->total_malfunctions;
             total_refuels +=car->total_refuels;
             for(l = 0;
-                (l < total_cars) && ((car->distance < car_ranking[l].distance) || (car->distance == car_ranking[i].distance && car->rank > car_ranking[l].rank)); l++);
+                (l < total_cars) && ((car->distance < car_ranking[l].distance) || (car->distance == car_ranking[l].distance && car->rank > car_ranking[l].rank)); l++);
             if(l == total_cars) continue;
             for(int k = total_cars - 1; k > l; k--)
                 car_ranking[k] = car_ranking[k-1];
@@ -63,7 +63,7 @@ void show_statistics(shared_memory_t * shared_memory, config_t * config) {
     snprintf(buffer2, MAX_STRING*100, "------------------------------------------------------------\n");
     strcat(buffer, buffer2);
     for(int i = 0; i < max_statistics; i++) {
-        snprintf(buffer2, MAX_STRING*100, "| %8d | %3d | %4s | %4d | %5d | %4.1f | %10s | \n", (car_ranking[i].status == GAVE_UP) ? total_cars : i+1, car_ranking[i].number, car_ranking[i].team->name, (int)(car_ranking[i].distance/config->lap_distance), car_ranking[i].total_boxstops, car_ranking[i].fuel, car_string[car_ranking[i].status]);
+        snprintf(buffer2, MAX_STRING*100, "| %8d | %3d | %4s | %4d | %5d | %4.1f | %10s |\n", (car_ranking[i].status == GAVE_UP) ? total_cars : i+1, car_ranking[i].number, car_ranking[i].team->name, (int)(car_ranking[i].distance/config->lap_distance), car_ranking[i].total_boxstops, car_ranking[i].fuel, car_string[car_ranking[i].status]);
         strcat(buffer, buffer2);
     }
     
