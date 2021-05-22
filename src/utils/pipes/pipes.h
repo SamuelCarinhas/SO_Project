@@ -15,12 +15,13 @@
 #include <unistd.h>
 #include <string.h>
 #include "../../config/config.h"
+#include "../../tools/shared/memory.h"
 
 #define FINISH -1
 #define END 1
 #define OK 0
 
-extern int read_from_pipes(int * pipes, int n_pipes, int (* handle_unnamed_pipe)(char * str), int (* handle_named_pipe)(char * str));
+extern int read_from_pipes(shared_memory_t * shared_memory, int * pipes, int n_pipes, int (* handle_unnamed_pipe)(char * str), int (* handle_named_pipe)(char * str));
 extern void write_pipe(int fd, char * format, ...);
 
 #endif

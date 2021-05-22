@@ -17,6 +17,7 @@ extra/simulator/managers/malfunction_manager.o: \
  src/simulator/managers/.././managers/../../config/config.h \
  src/simulator/managers/.././managers/../../utils/pipes/pipes.h \
  src/simulator/managers/.././managers/../../utils/pipes/../../config/config.h \
+ src/simulator/managers/.././managers/../../utils/pipes/../../tools/shared/memory.h \
  src/simulator/managers/.././managers/../../utils/string/string.h \
  src/simulator/managers/.././managers/team_manager.h \
  src/simulator/managers/.././managers/../../tools/messages/message.h \

@@ -19,5 +19,5 @@ do
 	echo "ADDCAR TIAM: BBB, CAR: 2, SPEED: 190, CONSUMPTION: 6, RELIABILITY: 77" > COMMAND_PIPE
 	sleep 0.01
 	echo "START RACE!" > COMMAND_PIPE
-	sleep 1.8
+	#sleep 1.8
 done

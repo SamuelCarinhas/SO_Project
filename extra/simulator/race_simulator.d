@@ -14,6 +14,7 @@ extra/simulator/race_simulator.o: src/simulator/race_simulator.c \
  src/simulator/./managers/../../config/config.h \
  src/simulator/./managers/../../utils/pipes/pipes.h \
  src/simulator/./managers/../../utils/pipes/../../config/config.h \
+ src/simulator/./managers/../../utils/pipes/../../tools/shared/memory.h \
  src/simulator/./managers/../../utils/string/string.h \
  src/simulator/./managers/../../utils/clock/clock.h \
  src/simulator/./managers/../../utils/clock/../../tools/shared/memory.h \

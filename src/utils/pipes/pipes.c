@@ -1,6 +1,6 @@
 #include "pipes.h"
 
-int read_from_pipes(int * pipes, int n_pipes, int (* handle_unnamed_pipe)(char * str), int (* handle_named_pipe)(char * str)) {
+int read_from_pipes(shared_memory_t * shared_memory, int * pipes, int n_pipes, int (* handle_unnamed_pipe)(char * str), int (* handle_named_pipe)(char * str)) {
     char string[MAX_STRING];
     int n_read, res;
     fd_set read_set;
@@ -8,7 +8,13 @@ int read_from_pipes(int * pipes, int n_pipes, int (* handle_unnamed_pipe)(char *
         FD_ZERO(&read_set);
         for(int i = 0; i < n_pipes; i++)
             FD_SET(pipes[i], &read_set);
+
         if(select(pipes[n_pipes-1] + 1, &read_set, NULL, NULL, NULL) > 0) {
+
+            if(shared_memory->race_started == 0 && shared_memory->end_race == 1) {
+                return FINISH;
+            }
+
             for(int i = 0; i < n_pipes; i++) {
                 if(FD_ISSET(pipes[i], &read_set)) {
                     n_read = read(pipes[i], string, MAX_STRING);
@@ -22,6 +28,11 @@ int read_from_pipes(int * pipes, int n_pipes, int (* handle_unnamed_pipe)(char *
                         res = handle_unnamed_pipe(string);
                         if(res == END || res == FINISH)
                             return res;
+                    }
+
+                    if(i == 0) {
+                        close(pipes[i]);
+                        pipes[i] = open(PIPE_NAME, O_RDONLY | O_NONBLOCK);
                     }
                 }
             }

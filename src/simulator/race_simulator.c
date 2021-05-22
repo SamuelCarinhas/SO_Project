@@ -53,13 +53,13 @@ void init() {
 
     init_mutex_proc(&shared_memory->mutex);
     init_mutex_proc(&shared_memory->mutex_reset);
-    init_mutex_proc(&shared_memory->end_race_mutex);
-    init_mutex_proc(&shared_memory->clock.wait_mutex);
+    //init_mutex_proc(&shared_memory->end_race_mutex);
+    //init_mutex_proc(&shared_memory->clock.wait_mutex);
     init_mutex_proc(&shared_memory->clock.mutex);
     init_cond_proc(&shared_memory->new_command);
     init_cond_proc(&shared_memory->reset_race);
-    init_cond_proc(&shared_memory->end_race_cond);
-    init_cond_proc(&shared_memory->clock.wait_cond);
+    //init_cond_proc(&shared_memory->end_race_cond);
+    //init_cond_proc(&shared_memory->clock.wait_cond);
     init_cond_proc(&shared_memory->clock.time_cond);
 
     shared_memory->message_queue = msgget(IPC_PRIVATE, IPC_CREAT|0777);
@@ -71,7 +71,7 @@ void init() {
     shared_memory->race_started = 0;
     init_memory(shared_memory);
     shared_memory->total_cars = 0;
-    shared_memory->clock.waiting = 0;
+    //shared_memory->clock.waiting = 0;
     write_log("SIMULATOR STARTING [%d]\n", getpid());
 }
 
@@ -90,13 +90,14 @@ void init() {
 void clean() {
     destroy_mutex_proc(&shared_memory->mutex);
     destroy_mutex_proc(&shared_memory->mutex_reset);
-    destroy_mutex_proc(&shared_memory->end_race_mutex);
-    destroy_mutex_proc(&shared_memory->clock.wait_mutex);
+    //destroy_mutex_proc(&shared_memory->end_race_mutex);
+    // destroy_mutex_proc(&shared_memory->clock.wait_mutex);
     destroy_mutex_proc(&shared_memory->clock.mutex);
+
     destroy_cond_proc(&shared_memory->new_command);
     destroy_cond_proc(&shared_memory->reset_race);
-    destroy_cond_proc(&shared_memory->end_race_cond);
-    destroy_cond_proc(&shared_memory->clock.wait_cond);
+    //destroy_cond_proc(&shared_memory->end_race_cond);
+    //destroy_cond_proc(&shared_memory->clock.wait_cond);
     destroy_cond_proc(&shared_memory->clock.time_cond);
     write_log("SIMULATOR CLOSING [%d]\n", getpid());
     destroy_mutex_log();
@@ -108,9 +109,21 @@ void clean() {
 
 void signal_sigint() {
     pthread_mutex_lock(&shared_memory->mutex);
-    shared_memory->end_race = 1; 
+    int reset = shared_memory->restarting_race;
+    if(reset == 0)
+        shared_memory->end_race = 1; 
+    int race_started = shared_memory->race_started;
     pthread_mutex_unlock(&shared_memory->mutex);
 
+    if(reset)
+        return;
+    
+    if(race_started == 0){
+        int fd = open(PIPE_NAME, O_WRONLY);
+        //!!!!!!!!!!!!!!!!! TESTAR FD !!!!!!!!!!!!!!!!!!!
+        write_pipe(fd, "END RACE");
+    }
+    pthread_cond_broadcast(&shared_memory->new_command);
     write_log("RACE SIMULATOR: SIGINT\n");
 
     while(wait(NULL) != -1);

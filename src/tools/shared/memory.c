@@ -101,13 +101,24 @@ void init_memory(shared_memory_t * shared_memory) {
     shared_memory->end_race = 0;
     shared_memory->restarting_race = 0;
     shared_memory->ranking = 0;
+    shared_memory->waiting_for_reset = 0;
 }
 
-void wait_for_start(shared_memory_t * shared_memory, pthread_mutex_t * mutex) {
+int wait_for_start(shared_memory_t * shared_memory, pthread_mutex_t * mutex) {
     pthread_mutex_lock(mutex);
-    while (shared_memory->race_started == 0 || shared_memory->restarting_race == 1)
+
+    while (shared_memory->race_started == 0 || shared_memory->end_race == 1 || shared_memory->restarting_race == 1) {
         pthread_cond_wait(&shared_memory->new_command, mutex);
+
+        if(shared_memory->race_started == 0 && shared_memory->end_race == 1) {
+            pthread_mutex_unlock(mutex);
+            return 1;
+        }
+    }
+    
     pthread_mutex_unlock(mutex);
+
+    return 0;
 }
 
 team_t * get_teams(shared_memory_t * shared_memory) {

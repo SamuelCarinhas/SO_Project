@@ -53,10 +53,10 @@ enum car_status {
 extern char * car_string[];
 
 struct clock {
-    int waiting;
+    //int waiting;
     pthread_mutex_t mutex;
-    pthread_mutex_t wait_mutex;
-    pthread_cond_t wait_cond;
+    //pthread_mutex_t wait_mutex;
+    //pthread_cond_t wait_cond;
     pthread_cond_t time_cond;
 };
 
@@ -69,9 +69,10 @@ struct shared_memory {
     int race_started;
     int message_queue;
     int restarting_race;
+    int waiting_for_reset;
     sync_clock_t clock;
-    pthread_mutex_t mutex, mutex_reset, end_race_mutex;
-    pthread_cond_t new_command, reset_race, end_race_cond;
+    pthread_mutex_t mutex, mutex_reset; //end_race_mutex;
+    pthread_cond_t new_command,  reset_race;//, end_race_cond;
 };
 
 struct team {
@@ -100,7 +101,7 @@ struct car {
     enum car_status status;
 };
 
-extern void wait_for_start(shared_memory_t * shared_memory, pthread_mutex_t* mutex);
+extern int wait_for_start(shared_memory_t * shared_memory, pthread_mutex_t * mutex);
 extern team_t * get_teams(shared_memory_t * shared_memory);
 extern car_t * get_cars(shared_memory_t * shared_memory, config_t * config);
 extern car_t * get_car(shared_memory_t * shared_memory, config_t * config, int pos_team, int pos_car);

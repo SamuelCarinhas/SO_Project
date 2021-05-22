@@ -37,6 +37,11 @@ void malfunction_manager(shared_memory_t * shared, config_t * conf) {
     while(1) {
         if(malfunction_generator())
             break;
+        pthread_mutex_lock(&shared->mutex_reset);
+        shared->waiting_for_reset++;
+        pthread_mutex_unlock(&shared->mutex_reset);
+        pthread_cond_signal(&shared->reset_race);
+        printf("MALFUNCTION RESTART\n");
     }
 
     write_debug("MALFUNCTION MANAGER LEFT\n");
@@ -49,7 +54,9 @@ int malfunction_generator() {
     
     srand(getpid());
 
-    wait_for_start(shared_memory, &shared_memory->mutex);
+    if(wait_for_start(shared_memory, &shared_memory->mutex)) {
+        return 1;
+    }
 
     message_t message;
     message.malfunction = 1;
@@ -59,11 +66,12 @@ int malfunction_generator() {
 
         pthread_mutex_lock(&shared_memory->mutex);
         //int res = shared_memory->end_race == 1 && shared_memory->race_started == 0;
-        int res = shared_memory->total_cars == shared_memory->finish_cars && shared_memory->restarting_race == 0;
+        int finish = shared_memory->total_cars == shared_memory->finish_cars && shared_memory->restarting_race == 0;
+        int restart = shared_memory->total_cars == shared_memory->finish_cars && shared_memory->restarting_race == 1;
         pthread_mutex_unlock(&shared_memory->mutex);
-
-        if(res)
-            return 1; //to finish
+        
+        if(finish || restart)
+            return finish;
         
         for(i = 0; i < shared_memory->num_teams; i++) {
             for(j = 0; j < get_teams(shared_memory)[i].num_cars; j++) {

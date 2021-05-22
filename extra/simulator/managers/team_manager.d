@@ -16,6 +16,7 @@ extra/simulator/managers/team_manager.o: \
  src/simulator/managers/.././managers/../../config/config.h \
  src/simulator/managers/.././managers/../../utils/pipes/pipes.h \
  src/simulator/managers/.././managers/../../utils/pipes/../../config/config.h \
+ src/simulator/managers/.././managers/../../utils/pipes/../../tools/shared/memory.h \
  src/simulator/managers/.././managers/../../utils/string/string.h \
  src/simulator/managers/.././managers/../../utils/clock/clock.h \
  src/simulator/managers/.././managers/../../utils/clock/../../tools/shared/memory.h \
