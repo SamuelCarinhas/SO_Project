@@ -195,13 +195,13 @@ int main() {
     signal(SIGINT, signal_sigint);
 
     waitpid(race_manager_pid, NULL, 0);
-    write_debug("RACE MANAGER IS LEAVING [%d]\n", race_manager_pid);
+    write_log("RACE MANAGER IS LEAVING [%d]\n", race_manager_pid);
 
     waitpid(malfunction_manager_pid, NULL, 0);
-    write_debug("MALFUNCTION MANAGER IS LEAVING [%d]\n", malfunction_manager_pid);
+    write_log("MALFUNCTION MANAGER IS LEAVING [%d]\n", malfunction_manager_pid);
 
     waitpid(clock_pid, NULL, 0);
-    write_debug("CLOCK IS LEAVING [%d]\n", clock_pid);
+    write_log("CLOCK IS LEAVING [%d]\n", clock_pid);
 
     clean();
 

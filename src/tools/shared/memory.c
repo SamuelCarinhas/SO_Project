@@ -89,6 +89,7 @@ void init_car(car_t * car, config_t * config) {
     car->total_malfunctions = 0;
     car->total_refuels = 0;
     car->total_boxstops = 0;
+    car->problem = 0;
 }
 
 void init_team(team_t * team) {

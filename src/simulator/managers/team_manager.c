@@ -31,6 +31,7 @@ void car_simulator(void * arg) {
         if(msgrcv(shared_memory->message_queue, &message, sizeof(message_t) - sizeof(long), car->number, IPC_NOWAIT) >= 0) {
             pthread_mutex_lock(&team->team_mutex);
             car->status = SAFE_MODE;
+            car->problem = 1;
             car->total_malfunctions++;
             team->safe_cars++;
             pthread_mutex_unlock(&team->team_mutex);
@@ -48,11 +49,6 @@ void car_simulator(void * arg) {
         car->fuel -= current_consumption;
 
         if(car->fuel <= 0) {
-            pthread_mutex_lock(&shared_memory->mutex);
-            shared_memory->finish_cars++;
-            int last = shared_memory->finish_cars == shared_memory->total_cars;
-            pthread_mutex_unlock(&shared_memory->mutex);
-
             pthread_mutex_lock(&team->team_mutex);
             car->fuel = 0;
             car->rank = LAST_RANK;
@@ -60,10 +56,6 @@ void car_simulator(void * arg) {
             pthread_mutex_unlock(&team->team_mutex);
 
             write_pipe(fd, "CAR %d GAVE UP\n", car->number);
-
-            if(last && shared_memory->end_race) {
-                write_pipe(fd, "FINISH");
-            }
             
             update_box();
 
@@ -72,7 +64,6 @@ void car_simulator(void * arg) {
 
         if(car->distance >= total_distance) {
             pthread_mutex_lock(&shared_memory->mutex);
-            shared_memory->finish_cars++;
             int rank = ++shared_memory->ranking;
             pthread_mutex_unlock(&shared_memory->mutex);
             
@@ -104,9 +95,7 @@ void car_simulator(void * arg) {
             pthread_mutex_lock(&shared_memory->mutex);
 
             if(shared_memory->end_race == 1){
-                shared_memory->finish_cars++;
                 int rank = ++shared_memory->ranking;
-                int last = shared_memory->finish_cars == shared_memory->total_cars;
                 pthread_mutex_unlock(&shared_memory->mutex);
                 pthread_mutex_lock(&team->team_mutex);
                 car->distance = laps_after * config->lap_distance;
@@ -115,10 +104,6 @@ void car_simulator(void * arg) {
                 pthread_mutex_unlock(&team->team_mutex);
 
                 write_pipe(fd, "CAR %d FINISHED THE RACE", car->number);
-
-                if(last) {
-                    write_pipe(fd, "FINISH");
-                }
                 
                 update_box();
 
@@ -133,9 +118,7 @@ void car_simulator(void * arg) {
                 pthread_mutex_unlock(&shared_memory->mutex);
                 if(end_race) {
                     pthread_mutex_lock(&shared_memory->mutex);
-                    shared_memory->finish_cars++;
                     int rank = ++shared_memory->ranking;
-                    int last = shared_memory->finish_cars == shared_memory->total_cars;
                     pthread_mutex_unlock(&shared_memory->mutex);
 
                     pthread_mutex_lock(&team->team_mutex);
@@ -144,10 +127,6 @@ void car_simulator(void * arg) {
                     pthread_mutex_unlock(&team->team_mutex);
 
                     write_pipe(fd, "CAR %d FINISHED THE RACE", car->number);
-
-                    if(last) {
-                        write_pipe(fd, "FINISH");
-                    }
                     
                     update_box();
 
@@ -212,7 +191,7 @@ int join_box(car_t * car) {
 void * box_handler() {
     while(1) {
         pthread_mutex_lock(&shared_memory->mutex);
-        int finish = shared_memory->total_cars == shared_memory->finish_cars/* && shared_memory->restarting_race == 0*/;
+        int finish = shared_memory->total_cars == shared_memory->finish_cars;
         int exit = shared_memory->race_started == 0 && shared_memory->end_race == 1 && shared_memory->restarting_race == 0;
         pthread_mutex_unlock(&shared_memory->mutex);
 
@@ -251,12 +230,20 @@ void * box_handler() {
 
         write_pipe(fd, "CAR %d ENTER THE BOX [TEAM: %s]", team->box.car->number, team->name);
         
-        sync_sleep(shared_memory, (rand() % (config->max_repair_time - config->min_repair_time + 1) + config->min_repair_time));
+        if(team->box.car->problem) {
+            sync_sleep(shared_memory, rand() % (config->max_repair_time - config->min_repair_time + 1) + config->min_repair_time);
+            write_log("[TEAM %s] BOX REPAIRED THE CAR %d\n",team->name,  team->box.car->number);
+        } else {
+            sync_sleep(shared_memory, 2);
+            write_log("[TEAM %s] BOX REFUELED THE CAR %d\n",team->name, team->box.car->number);
+        }
+
         pthread_mutex_lock(&team->team_mutex);
         team->box.car->fuel = config->fuel_capacity;
         team->box.car->total_boxstops++;
         team->box.car->status = RACE;
         team->box.car->total_refuels++;
+        team->box.car->problem = 0;
         if(join_state == SAFE_MODE)
             team->safe_cars--;
         team->box.status = (team->safe_cars > 0) ? RESERVED : OPEN;

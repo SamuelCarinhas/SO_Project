@@ -17,7 +17,6 @@
 #include "../../config/config.h"
 #include "../../tools/shared/memory.h"
 
-#define FINISH -1
 #define END 1
 #define OK 0
 

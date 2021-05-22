@@ -89,6 +89,7 @@ struct car {
     int rank;
     int speed;
     int number;
+    int problem;
     int reliability;
     int total_refuels;
     int total_boxstops;

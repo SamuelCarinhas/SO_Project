@@ -2,7 +2,7 @@
 
 int read_from_pipes(shared_memory_t * shared_memory, int * pipes, int n_pipes, int (* handle_unnamed_pipe)(char * str), int (* handle_named_pipe)(char * str)) {
     char string[MAX_STRING];
-    int n_read, res;
+    int n_read, res = OK;
     fd_set read_set;
     while(1) {
         FD_ZERO(&read_set);
@@ -12,23 +12,25 @@ int read_from_pipes(shared_memory_t * shared_memory, int * pipes, int n_pipes, i
         if(select(pipes[n_pipes-1] + 1, &read_set, NULL, NULL, NULL) > 0) {
 
             if(shared_memory->race_started == 0 && shared_memory->end_race == 1) {
-                return FINISH;
+                return END;
             }
 
             for(int i = 0; i < n_pipes; i++) {
                 if(FD_ISSET(pipes[i], &read_set)) {
+                    //while(1) {
                     n_read = read(pipes[i], string, MAX_STRING);
+
+                    if(n_read <= 0)
+                        break;
+
                     string[n_read] = '\0';
                     remove_endline(string);
-                    if(n_read > 0 && i == 0) {
-                        res = handle_named_pipe(string);
-                        if(res == END || res == FINISH)
-                            return res;
-                    } else if(n_read > 0) {
-                        res = handle_unnamed_pipe(string);
-                        if(res == END || res == FINISH)
-                            return res;
-                    }
+                    if(n_read > 0 && i == 0)
+                        res = handle_named_pipe(string) || res;
+                    else if(n_read > 0)
+                        res = handle_unnamed_pipe(string) || res;
+                    //}
+
 
                     if(i == 0) {
                         close(pipes[i]);
@@ -36,6 +38,9 @@ int read_from_pipes(shared_memory_t * shared_memory, int * pipes, int n_pipes, i
                     }
                 }
             }
+
+            if(res == END)
+                return res;
         }
     }
 }
