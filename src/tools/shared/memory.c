@@ -16,6 +16,12 @@ char * car_string[] = {
     "FINISHED"
 };
 
+/**
+ * @brief Display the statistics of the race
+ * 
+ * @param shared_memory Pointer to the shared memory structure
+ * @param config Pointer to the config structure
+ */
 void show_statistics(shared_memory_t * shared_memory, config_t * config) {
     pthread_mutex_lock(&shared_memory->mutex);
     int num_teams = shared_memory->num_teams;
@@ -81,6 +87,12 @@ void show_statistics(shared_memory_t * shared_memory, config_t * config) {
     write_log(buffer);
 }
 
+/**
+ * @brief Initializes the car variables
+ * 
+ * @param car Pointer to the car structure
+ * @param config Pointer to the config structure
+ */
 void init_car(car_t * car, config_t * config) {
     car->status = RACE;
     car->fuel = config->fuel_capacity;
@@ -92,10 +104,20 @@ void init_car(car_t * car, config_t * config) {
     car->problem = 0;
 }
 
+/**
+ * @brief Initializes the team variables
+ * 
+ * @param team Pointer to the team structure
+ */
 void init_team(team_t * team) {
     team->safe_cars = 0;
 }
 
+/**
+ * @brief Initializes the shared memory variables
+ * 
+ * @param shared_memory Pointer to the shared memory structure
+ */
 void init_memory(shared_memory_t * shared_memory) {
     shared_memory->finish_cars = 0;
     shared_memory->race_started = 0;
@@ -105,31 +127,60 @@ void init_memory(shared_memory_t * shared_memory) {
     shared_memory->waiting_for_reset = 0;
 }
 
-int wait_for_start(shared_memory_t * shared_memory, pthread_mutex_t * mutex) {
-    pthread_mutex_lock(mutex);
+/**
+ * @brief Waits for the race to start and also checks for a
+ * race interruption before starting.
+ * 
+ * @param shared_memory Pointer to the shared memory structure
+ * @return int 1 if there was an interruption or 0 otherwise
+ */
+int wait_for_start(shared_memory_t * shared_memory) {
+    pthread_mutex_lock(&shared_memory->mutex);
 
     while (shared_memory->race_started == 0 || shared_memory->end_race == 1 || shared_memory->restarting_race == 1) {
-        pthread_cond_wait(&shared_memory->new_command, mutex);
+        pthread_cond_wait(&shared_memory->new_command, &shared_memory->mutex);
 
         if(shared_memory->race_started == 0 && shared_memory->end_race == 1) {
-            pthread_mutex_unlock(mutex);
+            pthread_mutex_unlock(&shared_memory->mutex);
             return 1;
         }
     }
     
-    pthread_mutex_unlock(mutex);
+    pthread_mutex_unlock(&shared_memory->mutex);
 
     return 0;
 }
 
+/**
+ * @brief Get the pointer for the teams array
+ * 
+ * @param shared_memory Pointer to the shared memory structure
+ * @return team_t* Pointer to the first team structure in the array
+ */
 team_t * get_teams(shared_memory_t * shared_memory) {
     return (team_t *) (shared_memory + 1);
 }
 
+/**
+ * @brief Get the pointer for the cars array
+ * 
+ * @param shared_memory Pointer to the shared memory structure
+ * @param config Pointer to the config structure
+ * @return car_t* Pointer to the first car structure in the array
+ */
 car_t * get_cars(shared_memory_t * shared_memory, config_t * config) {
     return (car_t *) (get_teams(shared_memory) + config->teams);
 }
 
+/**
+ * @brief Get the pointer to a certain car structure according to the team and car position received
+ * 
+ * @param shared_memory Pointer to the shared memory structure
+ * @param config Pointer to the config structure
+ * @param pos_team Team position in the array
+ * @param pos_car Car position in the array
+ * @return car_t* Pointer to the car structure
+ */
 car_t * get_car(shared_memory_t * shared_memory, config_t * config, int pos_team, int pos_car) {
     return (car_t *) (get_cars(shared_memory, config) + pos_team * config->max_cars_per_team + pos_car);
 }

@@ -9,17 +9,30 @@
 #include "team_manager.h"
 
 int fd;
-shared_memory_t * shared_memory;
-config_t * config;
+
 team_t * team;
+config_t * config;
+shared_memory_t * shared_memory;
+
 pthread_t box_thread;
 
-void team_function();
-void end_team();
-void update_box();
-int join_box(car_t * car);
+static int join_box(car_t * car);
 
-void car_simulator(void * arg) {
+static void update_box();
+static void team_function();
+static void car_simulator(void * arg);
+
+static void * box_handler();
+static void * car_thread(void * arg);
+
+/**
+ * @brief Simulates the car behavior during the race. Receives malfunctions
+ * from the malfunction manager, changes the car status when receiving  a
+ * malfunction or having low fuel and requesting access to the box.
+ * 
+ * @param arg Pointer to car
+ */
+static void car_simulator(void * arg) {
     car_t * car = (car_t *) arg;
     message_t message;
 
@@ -28,7 +41,8 @@ void car_simulator(void * arg) {
 
     while(1) {
         sync_sleep(shared_memory, 1);
-        if(msgrcv(shared_memory->message_queue, &message, sizeof(message_t) - sizeof(long), car->number, IPC_NOWAIT) >= 0) {
+        
+        if(receive_message(shared_memory->message_queue, &message, car->number) >= 0) {
             pthread_mutex_lock(&team->team_mutex);
             car->status = SAFE_MODE;
             car->problem = 1;
@@ -139,23 +153,18 @@ void car_simulator(void * arg) {
     }
 }
 
-/*
-* NAME :                            void * car_thread(void * p)
-*
-* DESCRIPTION :                     Function to handle the Car Thread
-*
-* PARAMETERS :
-*           car_t *       p         pointer to the car
-*       
-* RETURN :
-*          void *                   NULL
-*
-*/
-void * car_thread(void * p) {
-    car_t * car = (car_t *) p;
+/**
+ * @brief Waits for the race to start and calls the car_simulator
+ * function
+ * 
+ * @param arg Car pointer
+ * @return void* 
+ */
+static void * car_thread(void * arg) {
+    car_t * car = (car_t *) arg;
     write_debug("CAR %d [TEAM %s] CREATED\n", car->number, team->name);
 
-    if (wait_for_start(shared_memory, &shared_memory->mutex))
+    if (wait_for_start(shared_memory))
         return NULL;
 
     car_simulator(car);
@@ -163,14 +172,26 @@ void * car_thread(void * p) {
     return NULL;
 }
 
-void update_box() {
+/**
+ * @brief Wakes up the box to check for new changes
+ * 
+ */
+static void update_box() {
     pthread_mutex_lock(&team->team_mutex);
     team->box.request_reservation = 1;
     pthread_mutex_unlock(&team->team_mutex);
     pthread_cond_signal(&team->box.request);
 }
 
-int join_box(car_t * car) {
+/**
+ * @brief Tries to take the car to the box
+ * 
+ * @param car Car pointer
+ * @return int Logical value
+ * 1 If the car got the box reservation
+ * 0 Otherwise
+ */
+static int join_box(car_t * car) {
     double current_speed = (car->status == SAFE_MODE) ? 0.3*car->speed : car->speed;
     int max_laps = (int) (car->fuel / (config->lap_distance/current_speed * car->consumption));
     if((team->box.status == RESERVED && car->status == SAFE_MODE) || (team->box.status == OPEN && max_laps <= 4)) {
@@ -188,7 +209,15 @@ int join_box(car_t * car) {
     return 0;
 }
 
-void * box_handler() {
+/**
+ * @brief Handle box requests. Requests can be to update the box status
+ * if something has changed, for example: restarting or ending race. And
+ * the requests can also be to fix cars and then it will simulate the time
+ * needed to repair or refuel the car.
+ * 
+ * @return void* 
+ */
+static void * box_handler() {
     while(1) {
         pthread_mutex_lock(&shared_memory->mutex);
         int finish = shared_memory->total_cars == shared_memory->finish_cars;
@@ -260,19 +289,15 @@ void * box_handler() {
     pthread_exit(NULL);
 }
 
-/*
-* NAME :                            void team_manager(shared_memory_t * shared_memory, team_t * team)
-*
-* DESCRIPTION :                     Function to handle Team process (1 per team)
-*
-* PARAMETERS :
-*           shared_memory_t *       shared_memory          pointer to the shared memory
-*           team_t *                team                   pointer to the team
-*       
-* RETURN :
-*          void
-*
-*/
+/**
+ * @brief Initializes the team box mutexes and condition variables and calls
+ * the team_function function.
+ * 
+ * @param shared Pointer to the shared memory structure
+ * @param t Pointer to the team structure
+ * @param conf Pointer to the config structure
+ * @param fd_unnamed_pipe File descriptor of the team unnamed pipe
+ */
 void team_manager(shared_memory_t * shared, team_t * t, config_t * conf, int fd_unnamed_pipe) {
     shared_memory = shared;
     config = conf;
@@ -295,6 +320,11 @@ void team_manager(shared_memory_t * shared, team_t * t, config_t * conf, int fd_
     close(fd);
 }
 
+/**
+ * @brief Handles the new cars requests and create the box and car threads.
+ * Check if when the race end it needs to be restarted and cleans the resources.
+ * 
+ */
 void team_function() {
     signal(SIGINT, SIG_IGN);
     signal(SIGUSR1, SIG_IGN);

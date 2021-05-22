@@ -8,19 +8,14 @@
 
 #include "numeric.h"
 
-/*
-* NAME :                            int is_number(char * string)
-*
-* DESCRIPTION :                     Checks if string is a number
-*
-* PARAMETERS :
-*           char *                  string                  String to check
-*
-*       
-* RETURN :
-*           int                     1 if is a number, 0 otherwise
-*
-*/
+/**
+ * @brief Check if the given string is a number
+ * 
+ * @param string String to check
+ * @return int Logical value of the comparsion
+ * 0 If the string is not a number
+ * 1 If the string is a number
+ */
 int is_number(char * string) {
     if(string == NULL)
         return 0;
@@ -32,19 +27,14 @@ int is_number(char * string) {
     return 1;
 }
 
-/*
-* NAME :                            int is_float(char * string)
-*
-* DESCRIPTION :                     Checks if string is a float
-*
-* PARAMETERS :
-*           char *                  string                  String to check
-*
-*       
-* RETURN :
-*           int                     1 if is a float, 0 otherwise
-*
-*/  
+/**
+ * @brief Check if the given string is a float
+ * 
+ * @param string String to check
+ * @return int Logical value of the comparsion
+ * 0 If the string is not a float
+ * 1 If the string is a float
+ */
 int is_float(char * string) {
     const char delim[2] = ".";
     char  * first, * second;

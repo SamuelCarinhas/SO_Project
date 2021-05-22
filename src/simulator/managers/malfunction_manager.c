@@ -10,22 +10,14 @@
 
 shared_memory_t * shared_memory;
 config_t * config;
-int malfunction_generator();
+static int malfunction_generator();
 
-/*
-* NAME :                            void race_manager(shared_memory_t * shared_memory)
-*
-* DESCRIPTION :                     Function to handle the Malfunction process
-*
-* PARAMETERS:
-*           shared_memory_t *       shared_memory          pointer to the shared memory
-*       
-* RETURN :
-*          void
-*
-* TODO :                            EVERYTHING
-*
-*/
+/**
+ * @brief Handle the malfunction manager
+ * 
+ * @param shared Pointer to the shared memory structure
+ * @param conf Pointer to the config structure
+ */
 void malfunction_manager(shared_memory_t * shared, config_t * conf) {
     signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
@@ -47,14 +39,19 @@ void malfunction_manager(shared_memory_t * shared, config_t * conf) {
     write_debug("MALFUNCTION MANAGER LEFT\n");
 }
 
-// 1 -> o malfunction tem que acabar
-// 0 -> dar reset
-int malfunction_generator() {
+/**
+ * @brief Generate multiple malfunctions to the race cars per time units.
+ * 
+ * @return int Logic value if the malfunction need to restart or can be closed
+ * 1 -> End malfunction
+ * 0 -> Restart malfunction
+ */
+static int malfunction_generator() {
     int i, j, rand_num;
     
     srand(getpid());
 
-    if(wait_for_start(shared_memory, &shared_memory->mutex)) {
+    if(wait_for_start(shared_memory)) {
         return 1;
     }
 
@@ -65,7 +62,6 @@ int malfunction_generator() {
         sync_sleep(shared_memory, config->malfunction_time_units);
 
         pthread_mutex_lock(&shared_memory->mutex);
-        //int res = shared_memory->end_race == 1 && shared_memory->race_started == 0;
         int finish = shared_memory->total_cars == shared_memory->finish_cars && shared_memory->restarting_race == 0;
         int restart = shared_memory->total_cars == shared_memory->finish_cars && shared_memory->restarting_race == 1;
         pthread_mutex_unlock(&shared_memory->mutex);
@@ -77,10 +73,8 @@ int malfunction_generator() {
             for(j = 0; j < get_teams(shared_memory)[i].num_cars; j++) {
                 car_t * car = get_car(shared_memory, config, i, j);
                 message.car_number = car->number;
-                // GENERATE A RANDOM PROBABILITY
                 rand_num = rand() % 100;
                 pthread_mutex_lock(&car->team->team_mutex);
-                // IF THE RANDOM NUMBER IS GREATER THEN THE CAR RELIABILITY AND THE CAR IS IN RACE MODE, WE WILL GENERATE A MALFUNCTION 
                 if(rand_num > car->reliability && car->status == RACE) {
                     pthread_mutex_unlock(&car->team->team_mutex);
                     send_message(shared_memory->message_queue, &message);

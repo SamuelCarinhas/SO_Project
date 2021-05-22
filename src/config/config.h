@@ -26,13 +26,15 @@
 #include "../utils/numeric/numeric.h"
 #include "../utils/string/string.h"
 
-
+// Global constant values
 #define MAX_STRING 100
 #define MIN_TEAMS 3
 #define PIPE_NAME "COMMAND_PIPE"
 #define LOG_FILE "log/log.txt"
 #define TOP_STATISTICS 5
 
+// Flag to enable debug logs
+// Remove it to remove the debug prints
 #define DEBUG
 
 typedef struct config config_t;

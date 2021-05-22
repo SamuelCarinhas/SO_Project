@@ -7,39 +7,34 @@
 */
 #include "log.h"
 
-/*
-* NAME :                            void init_mutex_log()
-*
-* DESCRIPTION :                     Function create the mutex for the log file
-*       
-* PARAMETERS :
-*           void
-*
-* RETURN :
-*           void
-*
-*/
+static void private_write_log(struct tm * tm_struct, char * format, va_list arg, int debug);
+static void private_write_stdout(struct tm * tm_struct, char * format, va_list arg, int debug);
+
+/**
+ * @brief Initialize the log mutex
+ * 
+ */
 void init_mutex_log() {
     sem_init(&mutex_log, 1, 1);
 }
 
-/*
-* NAME :                            void destroy_mutex_log()
-*
-* DESCRIPTION :                     Function destroy the mutex of the log file
-*       
-* PARAMETERS :
-*           void
-*
-* RETURN :
-*           void
-*
-*/
+/**
+ * @brief Destroy the log mutex
+ * 
+ */
 void destroy_mutex_log() {
     sem_destroy(&mutex_log);
 }
 
-void private_write_log(struct tm * tm_struct, char * format, va_list arg, int debug) {
+/**
+ * @brief Write the given information to the log file
+ * 
+ * @param tm_struct Struct with the current time (hours, minutes and seconds)
+ * @param format String format to write to the log file
+ * @param arg Arguments of the format
+ * @param debug Flag if its a debug message or not
+ */
+static void private_write_log(struct tm * tm_struct, char * format, va_list arg, int debug) {
     FILE * log = fopen(LOG_FILE, "a");
     fprintf(log, "%02d:%02d:%02d ", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
     if(debug)
@@ -48,28 +43,28 @@ void private_write_log(struct tm * tm_struct, char * format, va_list arg, int de
     fclose(log);
 }
 
-void private_write_stdout(struct tm * tm_struct, char * format, va_list arg, int debug) {
+/**
+ * @brief Write the given information to the stdout
+ * 
+ * @param tm_struct Struct with the current time (hours, minutes and seconds)
+ * @param format String format to write to the stdout
+ * @param arg Arguments of the format
+ * @param debug Flag if its a debug message or not
+ */
+static void private_write_stdout(struct tm * tm_struct, char * format, va_list arg, int debug) {
     fprintf(stdout, "%02d:%02d:%02d ", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
     if(debug)
         fprintf(stdout, "DEBUG: ");
     vfprintf(stdout, format, arg);
 }
 
-/*
-*
-* NAME :                            int write_log(FILE * file, char * line, int max_len)
-*
-* DESCRIPTION :                     Function to write information in the log file using a mutex to
-*                                   prevent simultaneous access
-*
-* PARAMETERS :
-*           char *                  format                  pointer to file
-*           ...                     Arguments for the string format
-*       
-* RETURN :
-*           void
-*
-*/
+/**
+ * @brief Get the current time and print the given string to
+ * the log file and stdout without the debug flag
+ * 
+ * @param format String format like printf
+ * @param ... String arguments
+ */
 void write_log(char * format, ...) {
     time_t now = time(NULL);
     struct tm * tm_struct = localtime(&now);
@@ -88,6 +83,13 @@ void write_log(char * format, ...) {
     sem_post(&mutex_log);
 }
 
+/**
+ * @brief Get the current time and print the given string to
+ * the log file and stdout with debug flag
+ * 
+ * @param format String format like printf
+ * @param ... String arguments
+ */
 void write_debug(char * format, ...) {
     #ifdef DEBUG
         time_t now = time(NULL);

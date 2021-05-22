@@ -11,31 +11,28 @@
 shared_memory_t * shared_memory;
 config_t * config;
 pid_t * teams_pids;
-pid_t malfunction_manager_pid;
 int ** pipes;
 int fd;
 
-int command_handler(char * string);
-int receive_car_messages(char * string);
+static int load_car(char * string);
+static int command_handler(char * string);
+static int receive_car_messages(char * string);
+static int get_team_position(char * team_name);
 
-void race();
-void clean_race();
+static void race();
+static void clean_race();
+static void race_sigusr1();
+static void restart_race();
+static void create_team(char * team_name, int pos);
 
-/*
-* NAME :                            void create_team(char * team_name, shared_memory_t * shared_memory, int pos)
-*
-* DESCRIPTION :                     Adds the new team's information to the shared memory and creates his process
-*
-* PARAMETERS :
-*           char *                  team_name              new team's name
-*           shared_memory_t *       shared_memory          pointer to the shared memory
-*           int                     pos                    position where to insert the new team
-*       
-* RETURN :
-*       void
-*
-*/
-void create_team(char * team_name, int pos) {
+/**
+ * @brief Creates the new team and add the information to the
+ * shared memory. After that creates the team's process.
+ * 
+ * @param team_name New team's name
+ * @param pos Team's position in the shared memory teams array.
+ */
+static void create_team(char * team_name, int pos) {
     team_t * team = get_teams(shared_memory) + pos;
     strcpy(team->name, team_name);
     team->num_cars = 0;
@@ -55,22 +52,13 @@ void create_team(char * team_name, int pos) {
         close(pipes[pos][1]);
 }
 
-/*
-* NAME :                            int get_team_position(char * team_name, shared_memory_t * shared_memory)
-*
-* DESCRIPTION :                     Search for the position of the given team in the shared_memory teams array
-*
-* PARAMETERS :
-*           char *                  team_name              team's name
-*           shared_memory_t *       shared_memory          pointer to the shared memory
-*       
-* RETURN :
-*           int                     Index of the team in the array 
-*
-* TODO :                            Check if the limit of teams wasn't exceeded
-*
-*/
-int get_team_position(char * team_name) {
+/**
+ * @brief Search for the position of the givem team in the shared memory teams array
+ * 
+ * @param team_name Team's name
+ * @return int Index of the team in the array
+ */
+static int get_team_position(char * team_name) {
     int pos;
     for(pos = 0; pos < shared_memory->num_teams && strcmp(get_teams(shared_memory)[pos].name, team_name); pos++);
     if(pos == shared_memory->num_teams) {
@@ -80,22 +68,16 @@ int get_team_position(char * team_name) {
     return pos;
 }
 
-/*
-* NAME :                            team_t * load_car(char * string, shared_memory_t * shared_memory)
-*
-* DESCRIPTION :                     Loads a new car into the team's car array
-*
-* PARAMETERS :
-*           char *                  string                 NAMEDPIPE command
-*           shared_memory_t *       shared_memory          pointer to the shared memory
-*       
-* RETURN :
-*           team_t                  pointer to the modified team
-*
-* TODO :                            Check the limit of cars per team and make sure the command is valid
-*
-*/
-int load_car(char * string) {
+/**
+ * @brief Loads a new car into the team's car array
+ * 
+ * @param string Command received from namedpipe
+ * @return int Logical value of the result of adding a new car
+ * 0 -> Couldn't parse the command
+ * 1 -> Invalid values or team is full
+ * 1 -> Car added 
+ */
+static int load_car(char * string) {
     char team_name[MAX_STRING];
     int car_number, speed, reliability;
     double consumption;
@@ -168,7 +150,13 @@ int load_car(char * string) {
     return 1;
 }
 
-void reset_race() {
+/**
+ * @brief Handles the SIGUSR1 signal
+ * If its possible to restart the race, notify the program that
+ * the race needs to restart.
+ * 
+ */
+static void race_sigusr1() {
     write_log("RACE MANAGER: SIGUSR1\n");
 
     pthread_mutex_lock(&shared_memory->mutex);
@@ -182,7 +170,13 @@ void reset_race() {
     pthread_mutex_unlock(&shared_memory->mutex);
 }
 
-void restart_race() {
+/**
+ * @brief Sends a signal to every team that they need to restart and
+ * wait for every team and the malfunction receive that information.
+ * After that, reset shared memory variables to their default values.
+ * 
+ */
+static void restart_race() {
     team_t * teams = get_teams(shared_memory);
     for(int i = 0; i < shared_memory->num_teams; i++) {
         pthread_mutex_lock(&teams[i].team_mutex);
@@ -200,13 +194,12 @@ void restart_race() {
             init_car(get_car(shared_memory, config, team->pos_array, j), config);
         }
     }
-
-    // ESPERA PELAS THREADS
     
     pthread_mutex_lock(&shared_memory->mutex);
     int num_teams = shared_memory->num_teams;
     pthread_mutex_unlock(&shared_memory->mutex);
 
+    // Wait for every process has received the information that the race is restarting
     pthread_mutex_lock(&shared_memory->mutex_reset);
     while(shared_memory->waiting_for_reset < num_teams + 1){
         pthread_cond_wait(&shared_memory->reset_race, &shared_memory->mutex_reset);
@@ -218,7 +211,11 @@ void restart_race() {
     write_log("RACE WAS RESTARTED\n");
 }
 
-void clean_race() {
+/**
+ * @brief Close the teams pipes and frees the pipes array
+ * 
+ */
+static void clean_race() {
     team_t * teams = get_teams(shared_memory);
     close(fd);
     for(int i = 0; i< shared_memory->num_teams; i++){
@@ -235,7 +232,15 @@ void clean_race() {
     free(teams_pids);
 } 
 
-int command_handler(char * string) {
+/**
+ * @brief Handles the command received from named pipe
+ * 
+ * @param string Command
+ * @return int Logical value of the command parsing
+ * OK -> Keep receiving commands from pipe
+ * END -> Can stop receiving commands from pipe
+ */
+static int command_handler(char * string) {
     pthread_mutex_lock(&shared_memory->mutex);
     if(shared_memory->race_started == 0) {
         pthread_mutex_unlock(&shared_memory->mutex);
@@ -266,7 +271,15 @@ int command_handler(char * string) {
     return OK;
 }
 
-int receive_car_messages(char * string) {
+/**
+ * @brief Handles the cars messages received from unnamed pipe
+ * 
+ * @param string Car message
+ * @return int Logical value of the message parsing
+ * OK -> Keep reading car messages
+ * END -> Stop reading from the unnamed pipes
+ */
+static int receive_car_messages(char * string) {
     write_log("%s\n", string);
     if(ends_with(string, "FINISHED THE RACE") || ends_with(string, "GAVE UP")) {
         pthread_mutex_lock(&shared_memory->mutex);
@@ -281,12 +294,17 @@ int receive_car_messages(char * string) {
     return OK;
 }
 
-void race() {
+/**
+ * @brief Loop to handle the race, read commands from named pipe
+ * and the received messages from cars
+ * 
+ */
+static void race() {
     signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
 
     while(1) {
-        signal(SIGUSR1, reset_race);
+        signal(SIGUSR1, race_sigusr1);
         read_from_pipes(shared_memory, &fd, 1, NULL, command_handler);
 
         if(shared_memory->race_started == 0)
@@ -310,25 +328,17 @@ void race() {
     }
 }
 
-/*
-* NAME :                            void race_manager(shared_memory_t * shared_memory)
-*
-* DESCRIPTION :                     Function to handle the Race Manager process
-*
-* PARAMETERS :
-*           shared_memory_t *       shared_memory          pointer to the shared memory
-*       
-* RETURN :
-*          void
-*
-* TODO :                            Handle possible errors (Creating the teams adding cars)
-*
-*/
-void race_manager(shared_memory_t * shared, config_t * conf, pid_t malfunction) {
+/**
+ * @brief Creates the unnamed pipes and calls the race function.
+ * After the race is ended displays the statistics and frees the
+ * allocated resources by calling the clean_race function.
+ * 
+ * @param shared Pointer to the shared memory structure
+ * @param conf Pointer to the config structure
+ */
+void race_manager(shared_memory_t * shared, config_t * conf) {
     shared_memory = shared;
     config = conf;
-    malfunction_manager_pid = malfunction;
-
 
     pipes = (int **) malloc(sizeof(int *) * config->teams);
     for(int i = 0; i < config->teams; i++)
@@ -344,7 +354,6 @@ void race_manager(shared_memory_t * shared, config_t * conf, pid_t malfunction) 
 
     teams_pids = (pid_t *) malloc(sizeof(pid_t) * config->teams);
 
-    //read comments from named & unnamed pipes
     race();
 
     pthread_mutex_lock(&shared_memory->mutex);

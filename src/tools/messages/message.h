@@ -32,5 +32,6 @@ struct message {
 };
 
 extern void send_message(int mq_id, message_t * message);
+extern int receive_message(int mq_id, message_t * message, int car_number);
 
 #endif

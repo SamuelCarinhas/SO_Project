@@ -7,6 +7,12 @@
 */
 #include "config.h"
 
+/**
+ * @brief Load and validate values from config file
+ *
+ * @return config_t* Structure with the program config
+ * (NULL pointer if config is invalid)
+ */
 config_t * load_config() {
     FILE * file = fopen("config/config.txt", "r");
 
@@ -87,6 +93,5 @@ config_t * load_config() {
     
     config->max_repair_time = atoi(token);
     config->fuel_capacity = atoi(lines[6]);
-    
     return config;
 }

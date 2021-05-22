@@ -7,20 +7,12 @@
 */
 #include "string.h"
 
-/*
-*
-* NAME :                            char * trim(char * string)
-*
-* DESCRIPTION :                     Deletes whitespaces at the beginnig and at the end
-*
-* PARAMETERS :
-*           char *                  string                  pointer to a string
-*
-*       
-* RETURN :
-*           char *                  pointer to string without whitespaces
-*
-*/
+/**
+ * @brief Delete whitespaces from the beginning and the end of the given string
+ * 
+ * @param string String to be trimmed
+ * @return char* Trimed string
+ */
 char * trim(char * string) {
 
     while(*string == ' ')
@@ -33,6 +25,11 @@ char * trim(char * string) {
     return string;
 }
 
+/**
+ * @brief Remove the endline character from the given string
+ * 
+ * @param string String to remove the endline character
+ */
 void remove_endline(char * string) {
 
     char * current = string;
@@ -47,20 +44,14 @@ void remove_endline(char * string) {
     return;
 }
 
-/*
-* NAME :                            int starts_with(char * a, char * b)
-*
-* DESCRIPTION :                     Checks if string 'a' starts with string 'b'
-*
-* PARAMETERS :
-*           char *                  a                  First String
-*           char *                  b                  Second String
-*
-*       
-* RETURN :
-*           int                     1 if 'a' starts with 'b', 0 otherwise
-*
-*/
+/**
+ * @brief Check if the given string 'a' starts with the given string 'b'
+ * 
+ * @param a First string
+ * @param b Second string
+ * @return int Logical value of the comparsion
+ * 0 if its false, 1 if its true
+ */
 int starts_with(char * a, char * b) {
     unsigned int len_b = strlen(b);
     if(len_b > strlen(a))
@@ -73,21 +64,14 @@ int starts_with(char * a, char * b) {
     return 1;
 }
 
-
-/*
-* NAME :                            int ends_with(char * a, char * b)
-*
-* DESCRIPTION :                     Checks if string 'a' ends with string 'b'
-*
-* PARAMETERS :
-*           char *                  a                  First String
-*           char *                  b                  Second String
-*
-*       
-* RETURN :
-*           int                     1 if 'a' ends with 'b', 0 otherwise
-*
-*/
+/**
+ * @brief Check if the given string 'a' ends with the given string 'b'
+ * 
+ * @param a First string
+ * @param b Second String
+ * @return int Logical value of the comparsion
+ * 0 if its false, 1 if its true
+ */
 int ends_with(char * a, char * b) {
     int len_b = (int) strlen(b);
     int len_a = (int) strlen(a);
@@ -101,20 +85,16 @@ int ends_with(char * a, char * b) {
     return 1;
 }
 
-/*
-* NAME :                            int read_line(FILE * file, char * line, int max_len)
-*
-* DESCRIPTION :                     Function to read a full line (until \n) from a file
-*
-* PARAMETERS :
-*           FILE *                  file                    pointer to file
-*           char *                  line                    pointer to the char array to store the line
-*           int *                   max_len                 max size of the char array
-*       
-* RETURN :
-*           int                     If there were no errors 0, otherwise -1
-*
-*/
+/**
+ * @brief Read full line until endoffile character from a given file
+ * 
+ * @param file Pointer to the file
+ * @param line Pointer to char array to stor the line read
+ * @param max_len Length of the char array
+ * @return int Logical value of the result of reading the line
+ * 0 If there is no errors
+ * 1 If something went wrong
+ */
 int read_line(FILE * file, char * line, int max_len) {
     int c, i = 0;
 

@@ -14,24 +14,17 @@ key_t shmkey;
 int shmid;
 pid_t race_manager_pid, malfunction_manager_pid, clock_pid;
 
-void signal_tstp();
-void signal_sigint();
-void clean();
-void init();
+static void signal_tstp();
+static void signal_sigint();
+static void clean();
+static void init();
 
-/*
-* NAME :                            void init()
-*
-* DESCRIPTION :                     Allocates space for teams and cars. Also inicializes mutex semaphores and condition variable
-*
-* PARAMETERS :
-*          void
-*       
-* RETURN :
-*          void
-*
-*/
-void init() {
+/**
+ * @brief Creates the shared memory, named pipe, and initialize the config, mutexes and
+ * condition variables.
+ * 
+ */
+static void init() {
     init_mutex_log();
     unlink(PIPE_NAME);
     if((mkfifo(PIPE_NAME, O_CREAT | O_EXCL | 0600) < 0) && (errno != EEXIST)) {
@@ -53,13 +46,10 @@ void init() {
 
     init_mutex_proc(&shared_memory->mutex);
     init_mutex_proc(&shared_memory->mutex_reset);
-    //init_mutex_proc(&shared_memory->end_race_mutex);
-    //init_mutex_proc(&shared_memory->clock.wait_mutex);
     init_mutex_proc(&shared_memory->clock.mutex);
+
     init_cond_proc(&shared_memory->new_command);
     init_cond_proc(&shared_memory->reset_race);
-    //init_cond_proc(&shared_memory->end_race_cond);
-    //init_cond_proc(&shared_memory->clock.wait_cond);
     init_cond_proc(&shared_memory->clock.time_cond);
 
     shared_memory->message_queue = msgget(IPC_PRIVATE, IPC_CREAT|0777);
@@ -71,33 +61,21 @@ void init() {
     shared_memory->race_started = 0;
     init_memory(shared_memory);
     shared_memory->total_cars = 0;
-    //shared_memory->clock.waiting = 0;
     write_log("SIMULATOR STARTING [%d]\n", getpid());
 }
 
-/*
-* NAME :                            void clean()
-*
-* DESCRIPTION :                     Free the shared memory
-*
-* PARAMETERS :
-*          void
-*       
-* RETURN :
-*          void
-*
-*/
-void clean() {
+/**
+ * @brief Destroy the created mutexes, semaphores, shared memory and
+ * the named pipe.
+ * 
+ */
+static void clean() {
     destroy_mutex_proc(&shared_memory->mutex);
     destroy_mutex_proc(&shared_memory->mutex_reset);
-    //destroy_mutex_proc(&shared_memory->end_race_mutex);
-    // destroy_mutex_proc(&shared_memory->clock.wait_mutex);
     destroy_mutex_proc(&shared_memory->clock.mutex);
 
     destroy_cond_proc(&shared_memory->new_command);
     destroy_cond_proc(&shared_memory->reset_race);
-    //destroy_cond_proc(&shared_memory->end_race_cond);
-    //destroy_cond_proc(&shared_memory->clock.wait_cond);
     destroy_cond_proc(&shared_memory->clock.time_cond);
     write_log("SIMULATOR CLOSING [%d]\n", getpid());
     destroy_mutex_log();
@@ -107,7 +85,13 @@ void clean() {
     shmctl(shmid, IPC_RMID, NULL);
 }
 
-void signal_sigint() {
+/**
+ * @brief Handle the sigint signal.
+ * Notify the program that the race needs to end and wait
+ * for every car to reach the finish line
+ * 
+ */
+static void signal_sigint() {
     pthread_mutex_lock(&shared_memory->mutex);
     int reset = shared_memory->restarting_race;
     if(reset == 0)
@@ -120,7 +104,7 @@ void signal_sigint() {
     
     if(race_started == 0){
         int fd = open(PIPE_NAME, O_WRONLY);
-        //!!!!!!!!!!!!!!!!! TESTAR FD !!!!!!!!!!!!!!!!!!!
+        assert(fd > 0);
         write_pipe(fd, "END RACE");
     }
     pthread_cond_broadcast(&shared_memory->new_command);
@@ -135,7 +119,11 @@ void signal_sigint() {
     exit(0);
 }
 
-void signal_tstp() {
+/**
+ * @brief Handle the TSTP signal and show statistics
+ * 
+ */
+static void signal_tstp() {
     signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
     pthread_mutex_lock(&shared_memory->mutex);
@@ -150,18 +138,12 @@ void signal_tstp() {
     signal(SIGTSTP, signal_tstp);
 }
 
-/*
-* NAME :                            int main()
-*
-* DESCRIPTION :                     Main function
-*
-* PARAMETERS :
-*          void
-*       
-* RETURN :
-*          int                      0 if every thing went well
-*
-*/
+/**
+ * @brief Main function of the program. Loads the config, creates the shared memory,
+ * the needed processes and handle signal SIGTSTP and 
+ * 
+ * @return int Result of the program
+ */
 int main() {
 
     signal(SIGINT, SIG_IGN);
@@ -187,7 +169,7 @@ int main() {
     
     race_manager_pid = fork();
     if(race_manager_pid == 0) {
-        race_manager(shared_memory, config, malfunction_manager_pid);
+        race_manager(shared_memory, config);
         exit(0);
     }
 

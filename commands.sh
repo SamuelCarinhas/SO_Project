@@ -1,4 +1,5 @@
-for i in {1..1000}
+k=1
+for i in {1..1}
 do
 	echo "ADDCAR TEAM: AAA, CAR: 1, SPEED: 150, CONSUMPTION: 1, RELIABILITY: 87" > COMMAND_PIPE
 	sleep 0.01
@@ -20,4 +21,6 @@ do
 	sleep 0.01
 	echo "START RACE!" > COMMAND_PIPE
 	sleep 0.2
+
+	echo Running [$i/$k]
 done

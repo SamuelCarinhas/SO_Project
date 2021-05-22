@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 #include "./managers/malfunction_manager.h"
 #include "./managers/race_manager.h"
 #include "./managers/team_manager.h"
