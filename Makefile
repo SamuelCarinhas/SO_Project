@@ -6,8 +6,7 @@ BINDIR			:= .
 SRCS			:= $(wildcard $(SRC)/*.c) $(wildcard $(SRC)/*/*.c) $(wildcard $(SRC)/*/*/*.c)
 OBJS			:= $(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(SRCS))
 BIN				:= $(BINDIR)/project
-SUBMITFILE		:= teste.zip
-BUILD_DIR		:= build
+SUBMITFILE		:= ProjectSO.zip
 
 all:			$(BIN)
 
@@ -25,10 +24,6 @@ $(OBJ)/%.o:		$(SRC)/%.c
 clean:
 	$(RM) -r $(BIN) $(OBJS) $(DEPS)
 	$(RM) -r $(OBJ)
-
-deploy:
-	mkdir -p $(BUILD_DIR)
-	cp	$(BIN)	$(BUILD_DIR)/$(BIN)
 
 submit:
 	$(RM) $(SUBMITFILE)

@@ -21,8 +21,9 @@ char * car_string[] = {
  * 
  * @param shared_memory Pointer to the shared memory structure
  * @param config Pointer to the config structure
+ * @param finish Logical value if the function was called by a interruption or signal TSTP
  */
-void show_statistics(shared_memory_t * shared_memory, config_t * config) {
+void show_statistics(shared_memory_t * shared_memory, config_t * config, int finish) {
     pthread_mutex_lock(&shared_memory->mutex);
     int num_teams = shared_memory->num_teams;
     int total_cars = shared_memory->total_cars;
@@ -30,8 +31,11 @@ void show_statistics(shared_memory_t * shared_memory, config_t * config) {
     pthread_mutex_unlock(&shared_memory->mutex);
 
     team_t * teams = get_teams(shared_memory);
-    for(int i = 0; i < num_teams; i++)
-        pthread_mutex_lock(&teams[i].team_mutex);
+    for(int i = 0; i < num_teams; i++) {
+        team_t * team = &teams[i];
+        for(int j = 0; j < team->num_cars; j++)
+            pthread_mutex_lock(&get_car(shared_memory, config, team->pos_array, j)->car_mutex);
+    }
     
     int max_statistics = (total_cars >= TOP_STATISTICS) ? TOP_STATISTICS : total_cars;
     car_t car_ranking[total_cars];
@@ -57,10 +61,13 @@ void show_statistics(shared_memory_t * shared_memory, config_t * config) {
         }
     }
     
-    for(int i = 0; i < num_teams; i++)
-        pthread_mutex_unlock(&get_teams(shared_memory)[i].team_mutex);
+    for(int i = 0; i < num_teams; i++) {
+        team_t * team = &teams[i];
+        for(int j = 0; j < team->num_cars; j++)
+            pthread_mutex_unlock(&get_car(shared_memory, config, team->pos_array, j)->car_mutex);
+    }
  
-    char buffer[MAX_STRING*6] = "\n-------------------------------------------------------------------------------\nSTATISTICS:\n";
+    char buffer[MAX_STRING*6] = "\n-------------------------------------------------------------------------------\n                                  STATISTICS\n";
     char buffer2[MAX_STRING];
     snprintf(buffer2, MAX_STRING*2, "-------------------------------------------------------------------------------\n");
     strcat(buffer, buffer2);
@@ -85,6 +92,9 @@ void show_statistics(shared_memory_t * shared_memory, config_t * config) {
     strcat(buffer, buffer2);
 
     write_log(buffer);
+
+    if(finish)
+        write_log("CAR %d (TEAM %s) WINS THE RACE.\n", car_ranking[0].number, car_ranking[0].team->name);
 }
 
 /**

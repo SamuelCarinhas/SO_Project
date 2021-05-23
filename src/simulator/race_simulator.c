@@ -26,6 +26,13 @@ static void init();
  */
 static void init() {
     init_log();
+
+    config = load_config();
+    if(config == NULL){
+        close_log();
+        exit(-1);
+    }
+
     unlink(PIPE_NAME);
     if((mkfifo(PIPE_NAME, O_CREAT | O_EXCL | 0600) < 0) && (errno != EEXIST)) {
         perror("Cannot create pipe: ");
@@ -77,12 +84,22 @@ static void clean() {
     destroy_cond_proc(&shared_memory->new_command);
     destroy_cond_proc(&shared_memory->reset_race);
     destroy_cond_proc(&shared_memory->clock.time_cond);
+
+    team_t * teams = get_teams(shared_memory);
+    for(int i = 0; i < shared_memory->num_teams; i++) {
+        team_t * team = &teams[i];
+        for(int j = 0; j < team->num_cars; j++) {
+            destroy_mutex_proc(&get_car(shared_memory, config, team->pos_array, j)->car_mutex);
+        }
+    }
+
     write_log("SIMULATOR CLOSING [%d]\n", getpid());
     close_log();
     unlink(PIPE_NAME);
     msgctl(shared_memory->message_queue, IPC_RMID, 0);
     shmdt(shared_memory);
     shmctl(shmid, IPC_RMID, NULL);
+    free(config);
 }
 
 /**
@@ -129,7 +146,7 @@ static void signal_tstp() {
     pthread_mutex_lock(&shared_memory->mutex);
     if(shared_memory->race_started) {
         pthread_mutex_unlock(&shared_memory->mutex);
-        show_statistics(shared_memory, config);
+        show_statistics(shared_memory, config, 0);
     } else {
         pthread_mutex_unlock(&shared_memory->mutex);
         write_log("RACE NOT STARTED\n");
@@ -139,7 +156,7 @@ static void signal_tstp() {
 }
 
 /**
- * @brief Main function of the program. Loads the config, creates the shared memory,
+ * @brief Main function of the program and creates the shared memory,
  * the needed processes and handle signal SIGTSTP and 
  * 
  * @return int Result of the program
@@ -149,9 +166,6 @@ int main() {
     signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
     signal(SIGUSR1, SIG_IGN);
-
-    config = load_config();
-    if(config == NULL) return -1;
 
     init();
 
@@ -177,13 +191,13 @@ int main() {
     signal(SIGINT, signal_sigint);
 
     waitpid(race_manager_pid, NULL, 0);
-    write_log("RACE MANAGER IS LEAVING [%d]\n", race_manager_pid);
+    write_debug("RACE MANAGER IS LEAVING [%d]\n", race_manager_pid);
 
     waitpid(malfunction_manager_pid, NULL, 0);
-    write_log("MALFUNCTION MANAGER IS LEAVING [%d]\n", malfunction_manager_pid);
+    write_debug("MALFUNCTION MANAGER IS LEAVING [%d]\n", malfunction_manager_pid);
 
     waitpid(clock_pid, NULL, 0);
-    write_log("CLOCK IS LEAVING [%d]\n", clock_pid);
+    write_debug("CLOCK IS LEAVING [%d]\n", clock_pid);
 
     clean();
 

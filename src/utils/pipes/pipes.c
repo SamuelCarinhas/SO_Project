@@ -28,7 +28,11 @@ void read_from_pipes(shared_memory_t * shared_memory, int * pipes, int n_pipes, 
 
         if(select(pipes[n_pipes-1] + 1, &read_set, NULL, NULL, NULL) > 0) {
 
-            if(shared_memory->race_started == 0 && shared_memory->end_race == 1) {
+            pthread_mutex_lock(&shared_memory->mutex);
+            int can_finish = shared_memory->race_started == 0 && shared_memory->end_race == 1;
+            pthread_mutex_unlock(&shared_memory->mutex);
+
+            if(can_finish) {
                 return;
             }
 

@@ -33,7 +33,7 @@ void malfunction_manager(shared_memory_t * shared, config_t * conf) {
         shared->waiting_for_reset++;
         pthread_mutex_unlock(&shared->mutex_reset);
         pthread_cond_signal(&shared->reset_race);
-        printf("MALFUNCTION RESTART\n");
+        write_debug("MALFUNCTION RESTART\n");
     }
 
     write_debug("MALFUNCTION MANAGER LEFT\n");
@@ -74,13 +74,13 @@ static int malfunction_generator() {
                 car_t * car = get_car(shared_memory, config, i, j);
                 message.car_number = car->number;
                 rand_num = rand() % 100;
-                pthread_mutex_lock(&car->team->team_mutex);
+                pthread_mutex_lock(&car->car_mutex);
                 if(rand_num > car->reliability && car->status == RACE) {
-                    pthread_mutex_unlock(&car->team->team_mutex);
+                    pthread_mutex_unlock(&car->car_mutex);
                     send_message(shared_memory->message_queue, &message);
                     write_debug("MALFUNCTION IN CAR %d\n", message.car_number);
                 } else {
-                    pthread_mutex_unlock(&car->team->team_mutex);
+                    pthread_mutex_unlock(&car->car_mutex);
                 }
             }
         }

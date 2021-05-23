@@ -141,7 +141,7 @@ static int load_car(char * string) {
     car->speed = speed;
     car->consumption = consumption;
     car->reliability = reliability;
-
+    init_mutex_proc(&car->car_mutex);
     init_car(car, config);
 
     shared_memory->total_cars++;
@@ -185,7 +185,7 @@ static void restart_race() {
         pthread_cond_signal(&teams[i].box.request);
     }
 
-    show_statistics(shared_memory, config);
+    show_statistics(shared_memory, config, 0);
 
     for(int i = 0; i < shared_memory->num_teams; i++) {
         team_t * team = &teams[i];
@@ -201,14 +201,12 @@ static void restart_race() {
 
     // Wait for every process has received the information that the race is restarting
     pthread_mutex_lock(&shared_memory->mutex_reset);
-    while(shared_memory->waiting_for_reset < num_teams + 1){
+    while(shared_memory->waiting_for_reset < num_teams + 1)
         pthread_cond_wait(&shared_memory->reset_race, &shared_memory->mutex_reset);
-        printf("RECEIVED: (%d/%d)\n", shared_memory->waiting_for_reset, num_teams+1);
-    }
     pthread_mutex_unlock(&shared_memory->mutex_reset);
     init_memory(shared_memory);
 
-    write_log("RACE WAS RESTARTED\n");
+    write_log("RACE WAS RESETED\n");
 }
 
 /**
@@ -216,10 +214,8 @@ static void restart_race() {
  * 
  */
 static void clean_race() {
-    team_t * teams = get_teams(shared_memory);
     close(fd);
     for(int i = 0; i< shared_memory->num_teams; i++){
-        pthread_mutex_destroy(&teams[i].team_mutex);
         close(pipes[i][0]);
         close(pipes[i][1]);
     }
@@ -307,7 +303,11 @@ static void race() {
         signal(SIGUSR1, race_sigusr1);
         read_from_pipes(shared_memory, &fd, 1, NULL, command_handler);
 
-        if(shared_memory->race_started == 0)
+        pthread_mutex_lock(&shared_memory->mutex);
+        int race_started = shared_memory->race_started;
+        pthread_mutex_unlock(&shared_memory->mutex);
+
+        if(race_started == 0)
             return;
 
         int pipe_arr[shared_memory->num_teams + 1];
@@ -357,6 +357,7 @@ void race_manager(shared_memory_t * shared, config_t * conf) {
     race();
 
     pthread_mutex_lock(&shared_memory->mutex);
+    int race_started = shared_memory->race_started;
     shared_memory->race_started = 0;
     pthread_mutex_unlock(&shared_memory->mutex);
 
@@ -373,7 +374,7 @@ void race_manager(shared_memory_t * shared, config_t * conf) {
         write_debug("TEAM %s IS LEAVING [%d]\n", get_teams(shared_memory)[i].name, teams_pids[i]);
     }
 
-    show_statistics(shared_memory, config);
+    show_statistics(shared_memory, config, race_started);
     clean_race();
     
     write_debug("RACE MANAGER LEFT\n");

@@ -34,6 +34,7 @@
 #define TOP_STATISTICS 5
 #define MIN_TEAM_NAME 3
 #define MAX_TEAM_NAME 16
+#define MAX_TIME_UNITS_PER_SECOND 150
 
 // Flag to enable debug logs
 // Remove it to remove the debug prints

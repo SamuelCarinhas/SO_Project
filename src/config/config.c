@@ -43,6 +43,11 @@ config_t * load_config() {
         return NULL;
     }
     config->time_units_per_second = atoi(lines[0]);
+    if(config->time_units_per_second > MAX_TIME_UNITS_PER_SECOND || config->time_units_per_second <= 0) {
+        write_log("ERROR: Invalid config file: Time units per second must be between %d and %d\n", 1, MAX_TIME_UNITS_PER_SECOND);
+        free(config);
+        return NULL;
+    }
 
     char * token;
     const char delim[3] = ", ";
@@ -54,6 +59,11 @@ config_t * load_config() {
         return NULL;
     }
     config->lap_distance = atoi(token);
+    if(config->lap_distance <= 0){
+        write_log("ERROR: Lap distance must be positive\n");
+        free(config);
+        return NULL;
+    }
     token = strtok(NULL, delim);
     
     if(token == NULL && !is_number(token)) {
@@ -63,6 +73,11 @@ config_t * load_config() {
     }
 
     config->laps = atoi(token);
+    if(config->laps <= 0){
+        write_log("ERROR: Number of laps must be positive\n");
+        free(config);
+        return NULL;
+    }
     config->teams = atoi(lines[2]);
 
     if(config->teams < MIN_TEAMS) {
@@ -72,7 +87,18 @@ config_t * load_config() {
     }
 
     config->max_cars_per_team = atoi(lines[3]);
+    if(config->max_cars_per_team <= 0) {
+        write_log("ERROR: Invalid config file: Max cars per team must be greater than 0\n");
+        free(config);
+        return NULL;
+    }
     config->malfunction_time_units = atoi(lines[4]);
+    
+    if(config->malfunction_time_units <= 0) {
+        write_log("ERROR: Invalid config file: Max repair time must be greater than 0\n");
+        free(config);
+        return NULL;
+    }
 
     token = strtok(lines[5], delim);
 
@@ -83,6 +109,12 @@ config_t * load_config() {
     }
 
     config->min_repair_time = atoi(token);
+    if(config->min_repair_time <= 0) {
+        write_log("ERROR: Invalid config file: Min repair time must be greater then 0\n");
+        free(config);
+        return NULL;
+    }
+
     token = strtok(NULL, delim);
     
     if(token == NULL && !is_number(token)) {
@@ -92,6 +124,26 @@ config_t * load_config() {
     }
     
     config->max_repair_time = atoi(token);
+
+    if(config->max_repair_time <= 0) {
+        write_log("ERROR: Invalid config file: Max repair time must be greater then 0\n");
+        free(config);
+        return NULL;
+    }
+
+    if(config->max_repair_time < config->min_repair_time) {
+        write_log("ERROR: Invalid config file: Max repair time cannot be less than the min repair time.\n");
+        free(config);
+        return NULL;
+    }
+
     config->fuel_capacity = atoi(lines[6]);
+    
+    if(config->fuel_capacity <= 0) {
+        write_log("ERROR: Invalid config file: Fuel capacity must be greater than 0\n");
+        free(config);
+        return NULL;
+    }
+    
     return config;
 }
