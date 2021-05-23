@@ -27,11 +27,13 @@
 #include "../utils/string/string.h"
 
 // Global constant values
-#define MAX_STRING 100
+#define MAX_STRING 5000
 #define MIN_TEAMS 3
 #define PIPE_NAME "COMMAND_PIPE"
 #define LOG_FILE "log/log.txt"
 #define TOP_STATISTICS 5
+#define MIN_TEAM_NAME 3
+#define MAX_TEAM_NAME 16
 
 // Flag to enable debug logs
 // Remove it to remove the debug prints

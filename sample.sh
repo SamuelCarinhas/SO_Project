@@ -1,5 +1,5 @@
-k = 1000
-for i in {1..$k}
+k = 100000
+for i in {1..10000}
 do
 	./project
 done

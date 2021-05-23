@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <assert.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
@@ -25,10 +26,9 @@
 #include <stdarg.h>
 #include "../../config/config.h"
 
-sem_t mutex_log;
 
-extern void init_mutex_log();
-extern void destroy_mutex_log();
+extern void init_log();
+extern void close_log();
 extern void write_log(char * format, ...);
 extern void write_debug(char * format, ...);
 

@@ -17,7 +17,7 @@ char * car_string[] = {
 };
 
 /**
- * @brief Display the statistics of the race
+ * @brief Displays the statistics of the race
  * 
  * @param shared_memory Pointer to the shared memory structure
  * @param config Pointer to the config structure
@@ -49,7 +49,7 @@ void show_statistics(shared_memory_t * shared_memory, config_t * config) {
             total_malfunctions += car->total_malfunctions;
             total_refuels +=car->total_refuels;
             for(l = 0;
-                (l < total_cars) && ((car->distance < car_ranking[l].distance) || (car->distance == car_ranking[l].distance && car->rank > car_ranking[l].rank)); l++);
+                (l < total_cars) &&((car->distance < car_ranking[l].distance) || (car->distance == car_ranking[l].distance && car->rank > car_ranking[l].rank)); l++);
             if(l == total_cars) continue;
             for(int k = total_cars - 1; k > l; k--)
                 car_ranking[k] = car_ranking[k-1];
@@ -60,28 +60,28 @@ void show_statistics(shared_memory_t * shared_memory, config_t * config) {
     for(int i = 0; i < num_teams; i++)
         pthread_mutex_unlock(&get_teams(shared_memory)[i].team_mutex);
  
-    char buffer[MAX_STRING*2000] = "\n------------------------------------------------------------\nSTATISTICS:\n";
-    char buffer2[MAX_STRING*100];
-    snprintf(buffer2, MAX_STRING*100, "------------------------------------------------------------\n");
+    char buffer[MAX_STRING*6] = "\n-------------------------------------------------------------------------------\nSTATISTICS:\n";
+    char buffer2[MAX_STRING];
+    snprintf(buffer2, MAX_STRING*2, "-------------------------------------------------------------------------------\n");
     strcat(buffer, buffer2);
-    snprintf(buffer2, MAX_STRING*2000, "|   RANK   | CAR | TEAM | LAPS | STOPS | FUEL |   STATUS   |\n");
+    snprintf(buffer2, MAX_STRING*2, "|   RANK   |  CAR  |        TEAM        | LAPS | STOPS |   FUEL  |   STATUS   |\n");
     strcat(buffer, buffer2);
-    snprintf(buffer2, MAX_STRING*100, "------------------------------------------------------------\n");
+    snprintf(buffer2, MAX_STRING*2, "-------------------------------------------------------------------------------\n");
     strcat(buffer, buffer2);
     for(int i = 0; i < max_statistics; i++) {
-        snprintf(buffer2, MAX_STRING*100, "| %8d | %3d | %4s | %4d | %5d | %4.1f | %10s |\n", (car_ranking[i].status == GAVE_UP) ? total_cars : i+1, car_ranking[i].number, car_ranking[i].team->name, (int)(car_ranking[i].distance/config->lap_distance), car_ranking[i].total_boxstops, car_ranking[i].fuel, car_string[car_ranking[i].status]);
+        snprintf(buffer2, MAX_STRING*2, "| %8d | %5d | %*s | %4d | %5d | %7.1f | %10s |\n", (car_ranking[i].status == GAVE_UP) ? total_cars : i+1, car_ranking[i].number, MAX_TEAM_NAME + 2, car_ranking[i].team->name, (int)(car_ranking[i].distance/config->lap_distance), car_ranking[i].total_boxstops, car_ranking[i].fuel, car_string[car_ranking[i].status]);
         strcat(buffer, buffer2);
     }
     
 
     if(total_cars > TOP_STATISTICS) {
-        snprintf(buffer2, MAX_STRING*100, "------------------------------------------------------------\n");
+        snprintf(buffer2, MAX_STRING*2, "-------------------------------------------------------------------------------\n");
         strcat(buffer, buffer2);
-        snprintf(buffer2, MAX_STRING*100, "| %8d | %3d | %4s | %4d | %5d | %4.1f | %10s | \n", total_cars, car_ranking[total_cars-1].number, car_ranking[total_cars -1].team->name, (int)(car_ranking[total_cars -1].distance/config->lap_distance), car_ranking[total_cars -1].total_boxstops, car_ranking[total_cars -1].fuel, car_string[car_ranking[total_cars -1].status]);
+        snprintf(buffer2, MAX_STRING*2, "| %8d | %5d | %*s | %4d | %5d | %7.1f | %10s | \n", total_cars, car_ranking[total_cars-1].number, MAX_TEAM_NAME + 2, car_ranking[total_cars -1].team->name, (int)(car_ranking[total_cars -1].distance/config->lap_distance), car_ranking[total_cars -1].total_boxstops, car_ranking[total_cars -1].fuel, car_string[car_ranking[total_cars -1].status]);
         strcat(buffer, buffer2);
     }
 
-    snprintf(buffer2, MAX_STRING*100, "------------------------------------------------------------\n| TOTAL MALFUNCTIONS: %36d |\n| TOTAL REFUELS: %41d |\n| TOTAL RACING CARS: %37d |\n------------------------------------------------------------\n", total_malfunctions, total_refuels, total_cars - finish_cars);
+    snprintf(buffer2, MAX_STRING*2, "-------------------------------------------------------------------------------\n| TOTAL MALFUNCTIONS: %55d |\n| TOTAL REFUELS: %60d |\n| TOTAL RACING CARS: %56d |\n-------------------------------------------------------------------------------\n", total_malfunctions, total_refuels, total_cars - finish_cars);
     strcat(buffer, buffer2);
 
     write_log(buffer);
@@ -152,7 +152,7 @@ int wait_for_start(shared_memory_t * shared_memory) {
 }
 
 /**
- * @brief Get the pointer for the teams array
+ * @brief Gets the pointer for the teams array
  * 
  * @param shared_memory Pointer to the shared memory structure
  * @return team_t* Pointer to the first team structure in the array
@@ -162,7 +162,7 @@ team_t * get_teams(shared_memory_t * shared_memory) {
 }
 
 /**
- * @brief Get the pointer for the cars array
+ * @brief Gets the pointer for the cars array
  * 
  * @param shared_memory Pointer to the shared memory structure
  * @param config Pointer to the config structure
@@ -173,7 +173,7 @@ car_t * get_cars(shared_memory_t * shared_memory, config_t * config) {
 }
 
 /**
- * @brief Get the pointer to a certain car structure according to the team and car position received
+ * @brief Gets the pointer to a certain car structure according to the team and car position received
  * 
  * @param shared_memory Pointer to the shared memory structure
  * @param config Pointer to the config structure

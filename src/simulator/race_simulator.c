@@ -25,7 +25,7 @@ static void init();
  * 
  */
 static void init() {
-    init_mutex_log();
+    init_log();
     unlink(PIPE_NAME);
     if((mkfifo(PIPE_NAME, O_CREAT | O_EXCL | 0600) < 0) && (errno != EEXIST)) {
         perror("Cannot create pipe: ");
@@ -78,7 +78,7 @@ static void clean() {
     destroy_cond_proc(&shared_memory->reset_race);
     destroy_cond_proc(&shared_memory->clock.time_cond);
     write_log("SIMULATOR CLOSING [%d]\n", getpid());
-    destroy_mutex_log();
+    close_log();
     unlink(PIPE_NAME);
     msgctl(shared_memory->message_queue, IPC_RMID, 0);
     shmdt(shared_memory);

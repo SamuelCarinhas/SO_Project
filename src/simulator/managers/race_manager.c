@@ -89,8 +89,8 @@ static int load_car(char * string) {
     if(res != 5)
         return 0;
 
-    if(strlen(team_name) < 3 || strlen(team_name) > 16) {
-        write_log("TEAM NAME MUST BE BETWEEN 3 AND 10\n");
+    if(strlen(team_name) < MIN_TEAM_NAME || strlen(team_name) > MAX_TEAM_NAME) {
+        write_log("TEAM NAME MUST BE BETWEEN %d AND %d\n", MIN_TEAM_NAME, MAX_TEAM_NAME);
         return -1;
     }
     

@@ -9,25 +9,32 @@
 
 static void private_write_log(struct tm * tm_struct, char * format, va_list arg, int debug);
 static void private_write_stdout(struct tm * tm_struct, char * format, va_list arg, int debug);
+sem_t mutex_log;
+int fd_log;
 
 /**
- * @brief Initialize the log mutex
+ * @brief Initializes the log mutex
+ * Opens log file descriptor
  * 
  */
-void init_mutex_log() {
+void init_log() {
+    fd_log = open(LOG_FILE, O_CREAT | O_WRONLY | O_APPEND, 0644);
+    assert(fd_log >= 0);
     sem_init(&mutex_log, 1, 1);
 }
 
 /**
- * @brief Destroy the log mutex
+ * @brief Destroys the log mutex
+ * Closes the log file descriptor
  * 
  */
-void destroy_mutex_log() {
+void close_log() {
     sem_destroy(&mutex_log);
+    close(fd_log);
 }
 
 /**
- * @brief Write the given information to the log file
+ * @brief Writes the given information to the log file
  * 
  * @param tm_struct Struct with the current time (hours, minutes and seconds)
  * @param format String format to write to the log file
@@ -35,16 +42,20 @@ void destroy_mutex_log() {
  * @param debug Flag if its a debug message or not
  */
 static void private_write_log(struct tm * tm_struct, char * format, va_list arg, int debug) {
-    FILE * log = fopen(LOG_FILE, "a");
-    fprintf(log, "%02d:%02d:%02d ", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
+    char message[MAX_STRING*2];
+    snprintf(message, MAX_STRING*2, "%02d:%02d:%02d ", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
+
     if(debug)
-        fprintf(log, "DEBUG: ");
-    vfprintf(log, format, arg);
-    fclose(log);
+        strcat(message, "DEBUG: ");
+
+    char parsed_message[MAX_STRING];
+    vsnprintf(parsed_message, MAX_STRING, format, arg);
+    strcat(message, parsed_message);
+    write(fd_log, message, strlen(message));
 }
 
 /**
- * @brief Write the given information to the stdout
+ * @brief Writes the given information to the stdout
  * 
  * @param tm_struct Struct with the current time (hours, minutes and seconds)
  * @param format String format to write to the stdout
@@ -59,7 +70,7 @@ static void private_write_stdout(struct tm * tm_struct, char * format, va_list a
 }
 
 /**
- * @brief Get the current time and print the given string to
+ * @brief Gets the current time and print the given string to
  * the log file and stdout without the debug flag
  * 
  * @param format String format like printf
@@ -84,8 +95,8 @@ void write_log(char * format, ...) {
 }
 
 /**
- * @brief Get the current time and print the given string to
- * the log file and stdout with debug flag
+ * @brief Gets the current time and print the given string to
+ * the log file and stdout with the debug flag
  * 
  * @param format String format like printf
  * @param ... String arguments

@@ -97,6 +97,7 @@ struct car {
     double consumption;
     team_t * team;
     pthread_t thread;
+    pthread_mutex_t car_mutex;
     enum car_status status;
 };
 
