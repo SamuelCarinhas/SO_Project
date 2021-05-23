@@ -63,10 +63,16 @@ static void private_write_log(struct tm * tm_struct, char * format, va_list arg,
  * @param debug Flag if its a debug message or not
  */
 static void private_write_stdout(struct tm * tm_struct, char * format, va_list arg, int debug) {
-    fprintf(stdout, "%02d:%02d:%02d ", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
+    char message[MAX_STRING*2];
+    snprintf(message, MAX_STRING*2, "%02d:%02d:%02d ", tm_struct->tm_hour, tm_struct->tm_min, tm_struct->tm_sec);
+
     if(debug)
-        fprintf(stdout, "DEBUG: ");
-    vfprintf(stdout, format, arg);
+        strcat(message, "DEBUG: ");
+
+    char parsed_message[MAX_STRING];
+    vsnprintf(parsed_message, MAX_STRING, format, arg);
+    strcat(message, parsed_message);
+    fprintf(stdout, "%s", message);
 }
 
 /**

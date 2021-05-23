@@ -22,6 +22,8 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <string.h>
+#include "./team/box_thread.h"
+#include "./team/car_thread.h"
 #include "../race_simulator.h"
 #include "../../utils/mutexes/mutex.h"
 #include "../../utils/log/log.h"
