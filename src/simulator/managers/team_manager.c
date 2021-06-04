@@ -71,16 +71,18 @@ static void team_function() {
                 }
             }
             int can_start = shared_memory->race_started;
-            pthread_mutex_unlock(&shared_memory->mutex);
 
-            if(can_start || exit) {
-                break;
+            if(team->res != team->num_cars) {
+                car_t * car = get_car(shared_memory, config, team->pos_array, team->res);
+                car_args_t * car_args = create_car_args(shared_memory, config, team, car, fd);
+                pthread_create(&car->thread, NULL, car_thread, car_args);
+                team->res++;
             }
+            
+            pthread_mutex_unlock(&shared_memory->mutex); 
 
-            car_t * car = get_car(shared_memory, config, team->pos_array, team->res);
-            car_args_t * car_args = create_car_args(shared_memory, config, team, car, fd);
-            pthread_create(&car->thread, NULL, car_thread, car_args);
-            team->res++;
+            if((can_start || exit) && (team->res == team->num_cars))
+                break;
         }
         
         box_args_t * box_args = create_box_args(shared_memory, config, team, fd);
