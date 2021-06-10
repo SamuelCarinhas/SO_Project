@@ -11,6 +11,7 @@
         "constants.h": "c",
         "fcntl.h": "c",
         "stdarg.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "shm.h": "c"
     }
 }

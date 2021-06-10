@@ -14,6 +14,7 @@
  * (NULL pointer if config is invalid)
  */
 config_t * load_config() {
+    
     FILE * file = fopen("config/config", "r");
 
     if(file == NULL) {
